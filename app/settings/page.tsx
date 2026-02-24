@@ -4,6 +4,7 @@ import { getSettings, updateSettings } from "@/lib/supabase/queries";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import type { UserSettings } from "@/types";
 
 export default function SettingsPage() {
@@ -11,6 +12,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const { signOut } = useAuthStore();
   const router = useRouter();
+  const { supported, subscribed, loading: pushLoading, subscribe, unsubscribe, sendTestNotification } = usePushNotifications();
 
   useEffect(() => { getSettings().then(setS); }, []);
 
@@ -31,7 +33,7 @@ export default function SettingsPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>{label}</p>
       <input type={type} value={value} onChange={e => onChange(e.target.value)}
-        style={{ width: "100%", background: "#27272a", border: "none", borderRadius: "12px", padding: "12px 16px", color: "white", fontSize: "16px", fontWeight: 600, outline: "none", boxSizing: "border-box" }} />
+        style={{ width: "100%", background: "#27272a", border: "none", borderRadius: "12px", padding: "12px 16px", color: "white", fontSize: "16px", fontWeight: 600, outline: "none", boxSizing: "border-box" as const }} />
     </div>
   );
 
@@ -70,9 +72,37 @@ export default function SettingsPage() {
         {field("Step Goal", s.stepGoal, v => update({ stepGoal: parseInt(v) }))}
       </>)}
 
+      {section("Notifications", 
+        supported ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <p style={{ color: "white", fontSize: "14px", fontWeight: 600 }}>Daily Reminders</p>
+                <p style={{ color: "#52525b", fontSize: "11px", marginTop: "2px" }}>{subscribed ? "Enabled — you'll get daily nudges" : "Get reminded to log your data"}</p>
+              </div>
+              <button onClick={subscribed ? unsubscribe : subscribe} disabled={pushLoading}
+                style={{ padding: "10px 18px", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, background: subscribed ? "#27272a" : "white", color: subscribed ? "#71717a" : "black" }}>
+                {pushLoading ? "..." : subscribed ? "Disable" : "Enable"}
+              </button>
+            </div>
+            {subscribed && (
+              <button onClick={sendTestNotification}
+                style={{ width: "100%", padding: "12px", borderRadius: "12px", background: "none", border: "1px solid #27272a", color: "#71717a", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
+                Send Test Notification
+              </button>
+            )}
+          </div>
+        ) : (
+          <p style={{ color: "#52525b", fontSize: "12px" }}>Push notifications not supported in this browser.</p>
+        )
+      )}
+
       <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
         <Link href="/finance" style={{ display: "block", padding: "16px 20px", color: "#a1a1aa", fontSize: "13px", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid #27272a" }}>
           💰 Finance & Goals →
+        </Link>
+        <Link href="/friends" style={{ display: "block", padding: "16px 20px", color: "#a1a1aa", fontSize: "13px", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid #27272a" }}>
+          👥 Friends →
         </Link>
         <Link href="/leaderboard" style={{ display: "block", padding: "16px 20px", color: "#a1a1aa", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}>
           🏆 Leaderboard →
@@ -82,7 +112,7 @@ export default function SettingsPage() {
       <button onClick={save} style={{
         width: "100%", padding: "16px", borderRadius: "16px",
         background: saved ? "#059669" : "white", color: saved ? "white" : "black",
-        fontWeight: 700, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", border: "none", cursor: "pointer", transition: "background 300ms"
+        fontWeight: 700, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, border: "none", cursor: "pointer", transition: "background 300ms"
       }}>
         {saved ? "Saved ✓" : "Save Settings"}
       </button>
@@ -90,7 +120,7 @@ export default function SettingsPage() {
       <button onClick={async () => { await signOut(); router.push("/auth"); }} style={{
         width: "100%", padding: "14px", borderRadius: "16px", background: "none",
         border: "1px solid #27272a", color: "#71717a", fontWeight: 600,
-        fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer"
+        fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer"
       }}>
         Sign Out
       </button>
