@@ -1,107 +1,64 @@
 "use client";
-import { useState, useCallback, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { parseIntent } from "@/lib/voice/parser";
 import { executeIntent } from "@/lib/voice/router";
 import type { ParsedIntent } from "@/types";
 
 export type VoiceState = "idle" | "recording" | "processing" | "confirming" | "success" | "error";
 
-let activeRecognition: SpeechRecognition | null = null;
+let activeRecognition: any = null;
 
 export function useVoice() {
   const [state, setState] = useState<VoiceState>("idle");
   const [transcript, setTranscript] = useState("");
-  const [pendingIntent, setPendingIntent] = useState<ParsedIntent | null>(null);
+  const [intent, setIntent] = useState<ParsedIntent | null>(null);
   const [error, setError] = useState("");
 
-  const startRecording = useCallback(() => {
-    const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setError("Voice not supported in this browser. Use Chrome.");
-      setState("error");
-      return;
-    }
+  const start = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) { setError("Speech not supported in this browser."); setState("error"); return; }
 
-    if (activeRecognition) {
-      activeRecognition.abort();
-      activeRecognition = null;
-    }
+    if (activeRecognition) { activeRecognition.stop(); activeRecognition = null; }
 
-    const recognition = new SpeechRecognition();
+    const recognition = new SR();
+    activeRecognition = recognition;
     recognition.lang = "en-US";
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    activeRecognition = recognition;
 
-    recognition.onstart = () => {
-      setState("recording");
-    };
-
-    recognition.onresult = (e) => {
+    recognition.onstart = () => setState("recording");
+    recognition.onresult = (e: any) => {
       const text = e.results[0][0].transcript;
       setTranscript(text);
       setState("processing");
-      const intent = parseIntent(text);
-      setPendingIntent(intent);
-      setState("confirming");
-      activeRecognition = null;
+      const parsed = parseIntent(text);
+      setIntent(parsed);
+      if (parsed.domain === "unknown") { setState("error"); setError("Couldn't understand that."); }
+      else setState("confirming");
     };
-
-    recognition.onerror = (e) => {
-      if (e.error === "no-speech") {
-        setError("No speech detected. Try again.");
-      } else if (e.error === "aborted") {
-        // manual stop, do nothing
-        return;
-      } else {
-        setError(`Error: ${e.error}`);
-      }
-      setState("error");
-      activeRecognition = null;
-    };
-
-    recognition.onend = () => {
-      if (activeRecognition === recognition) {
-        activeRecognition = null;
-      }
-    };
-
+    recognition.onerror = (e: any) => { setError(e.error); setState("error"); };
+    recognition.onend = () => { activeRecognition = null; };
     recognition.start();
   }, []);
 
-  const stopRecording = useCallback(() => {
-    if (activeRecognition) {
-      activeRecognition.stop();
-      activeRecognition = null;
+  const confirm = useCallback(async () => {
+    if (!intent) return;
+    setState("processing");
+    try {
+      await executeIntent(intent);
+      setState("success");
+      setTimeout(() => { setState("idle"); setIntent(null); setTranscript(""); }, 1500);
+    } catch (e: any) {
+      setError(e.message || "Failed to save.");
+      setState("error");
     }
+  }, [intent]);
+
+  const cancel = useCallback(() => {
+    if (activeRecognition) { activeRecognition.stop(); activeRecognition = null; }
+    setState("idle"); setIntent(null); setTranscript(""); setError("");
   }, []);
 
-  const confirmIntent = useCallback(async () => {
-    if (!pendingIntent) return;
-    await executeIntent(pendingIntent);
-    setState("success");
-  }, [pendingIntent]);
-
-  const reset = useCallback(() => {
-    if (activeRecognition) {
-      activeRecognition.abort();
-      activeRecognition = null;
-    }
-    setState("idle");
-    setTranscript("");
-    setPendingIntent(null);
-    setError("");
-  }, []);
-
-  return {
-    state,
-    transcript,
-    pendingIntent,
-    error,
-    startRecording,
-    stopRecording,
-    confirmIntent,
-    reset,
-  };
+  return { state, transcript, intent, error, start, confirm, cancel };
 }
