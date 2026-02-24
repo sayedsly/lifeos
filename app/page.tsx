@@ -61,6 +61,12 @@ export default function HomePage() {
     }
   };
 
+  const refreshSteps = async () => {
+    const s = await getStepsForDate(today());
+    setSteps(s);
+    refreshMomentum();
+  };
+
   useEffect(() => {
     if (!authLoading && user) loadAll();
     if (!authLoading && !user) window.location.href = "/auth";
@@ -107,7 +113,7 @@ export default function HomePage() {
         <HydrationCard current={hydration} goal={hydrationGoal} />
       </div>
       <SleepCard sleep={sleep} goal={sleepGoal} onLog={() => setSleepModalOpen(true)} />
-      <StepsCard current={steps} goal={stepGoal} />
+      <StepsCard current={steps} goal={stepGoal} onUpdate={refreshSteps} />
       {sleepModalOpen && <SleepLogModal onClose={() => setSleepModalOpen(false)} onSave={loadAll} />}
     </div>
   );
