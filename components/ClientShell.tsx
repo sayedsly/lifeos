@@ -1,6 +1,6 @@
 "use client";
-import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import AuthProvider from "@/components/AuthProvider";
 import BottomNav from "@/components/nav/BottomNav";
 import MicButton from "@/components/nav/MicButton";
@@ -9,20 +9,18 @@ import { useAuthStore } from "@/store/useAuthStore";
 
 function Shell() {
   const { user, loading } = useAuthStore();
-  const router = useRouter();
   const pathname = usePathname();
+  const redirected = useRef(false);
 
   useEffect(() => {
-    if (!loading && !user && pathname !== "/auth") {
-      router.replace("/auth");
-    }
-    if (!loading && user && pathname === "/auth") {
-      router.replace("/");
+    if (loading) return;
+    if (!user && pathname !== "/auth" && !redirected.current) {
+      redirected.current = true;
+      window.location.replace("/auth");
     }
   }, [user, loading, pathname]);
 
-  if (loading) return null;
-  if (!user) return null;
+  if (loading || !user) return null;
 
   return (
     <>
