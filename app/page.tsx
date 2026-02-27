@@ -8,6 +8,8 @@ import SleepCard from "@/components/momentum/SleepCard";
 import StepsCard from "@/components/momentum/StepsCard";
 import TrendGraph from "@/components/momentum/TrendGraph";
 import SleepLogModal from "@/components/momentum/SleepLogModal";
+import HydrationHistory from "@/components/momentum/HydrationHistory";
+import SleepHistory from "@/components/momentum/SleepHistory";
 import Onboarding from "@/components/Onboarding";
 import {
   getMomentumForDate, getHydrationForDate, getSleepForDate,
@@ -37,11 +39,8 @@ export default function HomePage() {
   const loadAll = async () => {
     try {
       const [s, h, sl, stepCount, trendData] = await Promise.all([
-        getSettings(),
-        getHydrationForDate(today()),
-        getSleepForDate(today()),
-        getStepsForDate(today()),
-        getLast7DaysMomentum(),
+        getSettings(), getHydrationForDate(today()), getSleepForDate(today()),
+        getStepsForDate(today()), getLast7DaysMomentum(),
       ]);
       setHydrationGoal(s.hydrationGoal);
       setSleepGoal(s.sleepGoal);
@@ -51,7 +50,6 @@ export default function HomePage() {
       setSteps(stepCount);
       setTrend(trendData);
       refreshMomentum();
-      // Show onboarding if name is still default
       if (!s.name || s.name === "You") setShowOnboarding(true);
     } catch (e) {
       console.error("Load error:", e);
@@ -115,7 +113,9 @@ export default function HomePage() {
       }}>
         <HydrationCard current={hydration} goal={hydrationGoal} />
       </div>
+      <HydrationHistory />
       <SleepCard sleep={sleep} goal={sleepGoal} onLog={() => setSleepModalOpen(true)} />
+      <SleepHistory />
       <StepsCard current={steps} goal={stepGoal} onUpdate={refreshSteps} />
       {sleepModalOpen && <SleepLogModal onClose={() => setSleepModalOpen(false)} onSave={loadAll} />}
     </div>
