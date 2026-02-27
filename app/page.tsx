@@ -38,10 +38,10 @@ export default function HomePage() {
   const [streak, setStreak] = useState(0);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [settings, setSettings] = useState<any>(null);
 
   const loadAll = async () => {
     try {
-      // All queries in parallel
       const [s, h, sl, stepCount, trendData, streakCount, prevMomentum] = await Promise.all([
         getSettings(),
         getHydrationForDate(today()),
@@ -51,7 +51,7 @@ export default function HomePage() {
         getCurrentStreak(),
         getMomentumForDate(format(subDays(new Date(), 1), "yyyy-MM-dd")),
       ]);
-
+      setSettings(s);
       setHydrationGoal(s.hydrationGoal);
       setSleepGoal(s.sleepGoal);
       setStepGoal(s.stepGoal);
@@ -62,14 +62,18 @@ export default function HomePage() {
       setStreak(streakCount);
       if (!s.name || s.name === "You") setShowOnboarding(true);
       refreshMomentum();
-
-      // Set delta after momentum loads
       if (prevMomentum && momentum) setDelta(momentum.score - prevMomentum.score);
     } catch (e) {
       console.error("Load error:", e);
     } finally {
       setReady(true);
     }
+  };
+
+  const refreshHydration = async () => {
+    const h = await getHydrationForDate(today());
+    setHydration(h);
+    refreshMomentum();
   };
 
   const refreshSteps = async () => {
@@ -91,12 +95,22 @@ export default function HomePage() {
   }, [momentum]);
 
   const addHydration = async (amount: number) => {
+    const newAmount = Math.max(0, hydration + amount);
     try {
       await addHydrationEntry({ id: Math.random().toString(36).slice(2), date: today(), timestamp: Date.now(), amount });
       await computeMomentum(today());
-      const h = await getHydrationForDate(today());
-      setHydration(h);
-      refreshMomentum();
+      await refreshHydration();
+    } catch (e) { console.error(e); }
+  };
+
+  const removeHydration = async (amount: number) => {
+    // Insert a negative entry to reduce total
+    const removeAmt = Math.min(amount, hydration);
+    if (removeAmt <= 0) return;
+    try {
+      await addHydrationEntry({ id: Math.random().toString(36).slice(2), date: today(), timestamp: Date.now(), amount: -removeAmt });
+      await computeMomentum(today());
+      await refreshHydration();
     } catch (e) { console.error(e); }
   };
 
@@ -110,6 +124,11 @@ export default function HomePage() {
     <Onboarding onComplete={() => { setShowOnboarding(false); loadAll(); }} />
   );
 
+  const showStreak = settings?.homeWidgets?.streak !== false;
+  const showHydrationChart = settings?.homeWidgets?.hydrationChart !== false;
+  const showSleepChart = settings?.homeWidgets?.sleepChart !== false;
+  const showTrend = settings?.homeWidgets?.trendGraph !== false;
+
   return (
     <div className="space-y-4">
       <div style={{ paddingTop: "8px" }}>
@@ -117,20 +136,12 @@ export default function HomePage() {
         <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>{format(new Date(), "EEEE, MMM d")}</p>
       </div>
       <MomentumCard snapshot={momentum} delta={delta} />
-      <StreakCard streak={streak} />
-      <TrendGraph data={trend} />
-      <div onClick={async (e) => {
-        const btn = (e.target as HTMLElement).closest("button[data-amount]");
-        if (btn) {
-          const amount = parseInt(btn.getAttribute("data-amount") || "0");
-          if (amount) await addHydration(amount);
-        }
-      }}>
-        <HydrationCard current={hydration} goal={hydrationGoal} />
-      </div>
-      <HydrationHistory />
+      {showStreak && <StreakCard streak={streak} />}
+      {showTrend && <TrendGraph data={trend} />}
+      <HydrationCard current={hydration} goal={hydrationGoal} onAdd={addHydration} onRemove={removeHydration} />
+      {showHydrationChart && <HydrationHistory />}
       <SleepCard sleep={sleep} goal={sleepGoal} onLog={() => setSleepModalOpen(true)} />
-      <SleepHistory />
+      {showSleepChart && <SleepHistory />}
       <StepsCard current={steps} goal={stepGoal} onUpdate={refreshSteps} />
       {sleepModalOpen && <SleepLogModal onClose={() => setSleepModalOpen(false)} onSave={loadAll} />}
     </div>
