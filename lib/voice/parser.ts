@@ -60,23 +60,11 @@ function tryParseFinance(text: string): ParsedIntent | null {
   const t = text.toLowerCase();
   const goalAddMatch = t.match(/add\s+\$?(\d+(?:\.\d+)?)\s+to\s+(.+)/);
   if (goalAddMatch) {
-    return {
-      domain: "finance_goal_add",
-      confidence: 0.9,
-      data: { amount: parseFloat(goalAddMatch[1]), goalName: goalAddMatch[2].trim() },
-      rawTranscript: text,
-      requiresConfirmation: true,
-    };
+    return { domain: "finance_goal_add", confidence: 0.9, data: { amount: parseFloat(goalAddMatch[1]), goalName: goalAddMatch[2].trim() }, rawTranscript: text, requiresConfirmation: true };
   }
   const expenseMatch = t.match(/(?:spent|spend|paid|pay)\s+\$?(\d+(?:\.\d+)?)\s+(?:on\s+)?(.+)/);
   if (expenseMatch) {
-    return {
-      domain: "finance_expense",
-      confidence: 0.9,
-      data: { amount: parseFloat(expenseMatch[1]), description: expenseMatch[2].trim(), category: "Other" },
-      rawTranscript: text,
-      requiresConfirmation: true,
-    };
+    return { domain: "finance_expense", confidence: 0.9, data: { amount: parseFloat(expenseMatch[1]), description: expenseMatch[2].trim(), category: "Other" }, rawTranscript: text, requiresConfirmation: true };
   }
   return null;
 }
@@ -105,24 +93,18 @@ function tryParseNutrition(text: string): ParsedIntent | null {
     { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
   const foodLabel = matched.map(m => `${m.quantity > 1 ? m.quantity + "x " : ""}${m.food.name}`).join(", ");
-  return {
-    domain: "nutrition_add",
-    confidence: 0.85,
-    data: { food: foodLabel, amount: matched.map(m => m.food.serving).join(", "), ...totals, source: "voice" },
-    rawTranscript: text,
-    requiresConfirmation: true,
-  };
+  return { domain: "nutrition_add", confidence: 0.85, data: { food: foodLabel, amount: matched.map(m => m.food.serving).join(", "), ...totals, source: "voice" }, rawTranscript: text, requiresConfirmation: true };
 }
 
-export function parseIntent(transcript: string): ParsedIntent {
-  const result =
+// Returns null if nothing recognized — caller handles the error
+export function parseIntent(transcript: string): ParsedIntent | null {
+  return (
     tryParseHydration(transcript) ||
     tryParseSleep(transcript) ||
     tryParseSteps(transcript) ||
     tryParseTask(transcript) ||
     tryParseFinance(transcript) ||
-    tryParseNutrition(transcript);
-
-  if (result) return result;
-  return { domain: "unknown", confidence: 0, data: {}, rawTranscript: transcript, requiresConfirmation: true };
+    tryParseNutrition(transcript) ||
+    null
+  );
 }
