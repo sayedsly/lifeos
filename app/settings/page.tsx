@@ -4,6 +4,7 @@ import { getSettings, updateSettings } from "@/lib/supabase/queries";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import HealthSync from "@/components/settings/HealthSync";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import type { UserSettings } from "@/types";
 
@@ -195,6 +196,8 @@ export default function SettingsPage() {
       }}>
         {saved ? "Saved ✓" : "Save Settings"}
       </button>
+
+      <HealthSync />
 
       <button onClick={async () => { await signOut(); router.push("/auth"); }} style={{
         width: "100%", padding: "14px", borderRadius: "16px", background: "none",

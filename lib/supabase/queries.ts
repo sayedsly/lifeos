@@ -340,3 +340,26 @@ export async function getLastSessionForType(type: string) {
   // Return second most recent (most recent would be current)
   return data?.[0] || null;
 }
+
+// --- Health Sync ---
+export async function getWebhookToken(): Promise<string | null> {
+  const userId = await getUserId();
+  const { data } = await supabase.from("user_settings").select("webhook_token").eq("user_id", userId).single();
+  return data?.webhook_token || null;
+}
+
+export async function generateWebhookToken(): Promise<string> {
+  const userId = await getUserId();
+  const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+    .map(b => b.toString(16).padStart(2, "0")).join("");
+  await supabase.from("user_settings").update({ webhook_token: token }).eq("user_id", userId);
+  return token;
+}
+
+export async function getHealthSyncLog() {
+  const userId = await getUserId();
+  const { data } = await supabase.from("health_sync_log")
+    .select("*").eq("user_id", userId)
+    .order("synced_at", { ascending: false }).limit(10);
+  return data || [];
+}
