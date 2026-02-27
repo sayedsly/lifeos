@@ -4,61 +4,100 @@ import { supabase } from "@/lib/supabase/client";
 import { format } from "date-fns";
 
 interface Profile { id: string; username: string; }
-interface Friendship { id: string; requester_id: string; addressee_id: string; status: string; profiles: Profile; }
+interface Friendship { id: string; requester_id: string; addressee_id: string; status: string; otherUser: Profile; }
 interface LeaderboardEntry { username: string; score: number; userId: string; }
 
 export default function FriendsPage() {
   const [myId, setMyId] = useState("");
-  const [myUsername, setMyUsername] = useState("");
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Profile[]>([]);
   const [friends, setFriends] = useState<Friendship[]>([]);
   const [pending, setPending] = useState<Friendship[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [tab, setTab] = useState<"leaderboard" | "friends" | "add">("leaderboard");
+  const [loading, setLoading] = useState(true);
+  const [requestSent, setRequestSent] = useState<string[]>([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user) return;
       setMyId(data.user.id);
-      supabase.from("profiles").select("username").eq("id", data.user.id).single()
-        .then(({ data: p }) => { if (p) setMyUsername(p.username); });
-      loadFriends(data.user.id);
+      loadAll(data.user.id);
     });
   }, []);
 
-  const loadFriends = async (uid: string) => {
-    const { data } = await supabase
-      .from("friendships")
-      .select("*, profiles!friendships_addressee_id_fkey(id, username)")
-      .eq("requester_id", uid);
+  const loadAll = async (uid: string) => {
+    setLoading(true);
+    try {
+      // Fetch all friendships involving this user
+      const { data: sent } = await supabase
+        .from("friendships")
+        .select("*")
+        .eq("requester_id", uid);
 
-    const { data: incoming } = await supabase
-      .from("friendships")
-      .select("*, profiles!friendships_requester_id_fkey(id, username)")
-      .eq("addressee_id", uid)
-      .eq("status", "pending");
+      const { data: received } = await supabase
+        .from("friendships")
+        .select("*")
+        .eq("addressee_id", uid);
 
-    const accepted = (data || []).filter((f: any) => f.status === "accepted");
-    setFriends(accepted);
-    setPending(incoming || []);
+      const allFriendships = [...(sent || []), ...(received || [])];
 
-    // Load friend leaderboard
-    const friendIds = accepted.map((f: any) => f.addressee_id);
-    if (friendIds.length > 0) {
+      // Get all other user IDs
+      const otherIds = allFriendships.map(f =>
+        f.requester_id === uid ? f.addressee_id : f.requester_id
+      );
+
+      // Fetch profiles for all those users
+      let profileMap: Record<string, Profile> = {};
+      if (otherIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, username")
+          .in("id", otherIds);
+        (profiles || []).forEach(p => { profileMap[p.id] = p; });
+      }
+
+      // Build friendship objects with profile data
+      const withProfiles = allFriendships.map(f => ({
+        ...f,
+        otherUser: profileMap[f.requester_id === uid ? f.addressee_id : f.requester_id] || { id: "", username: "Unknown" },
+      }));
+
+      const acceptedFriends = withProfiles.filter(f => f.status === "accepted");
+      const pendingIncoming = withProfiles.filter(f => f.status === "pending" && f.addressee_id === uid);
+
+      setFriends(acceptedFriends);
+      setPending(pendingIncoming);
+
+      // Load leaderboard for accepted friends + self
+      const friendIds = acceptedFriends.map(f =>
+        f.requester_id === uid ? f.addressee_id : f.requester_id
+      );
       const today = format(new Date(), "yyyy-MM-dd");
       const { data: scores } = await supabase
         .from("momentum_snapshots")
-        .select("user_id, score, profiles(username)")
+        .select("user_id, score")
         .in("user_id", [...friendIds, uid])
         .eq("date", today);
 
-      const entries = (scores || []).map((s: any) => ({
+      // Fetch my own profile
+      const { data: myProfile } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", uid)
+        .single();
+
+      const entries: LeaderboardEntry[] = (scores || []).map(s => ({
         userId: s.user_id,
-        username: s.profiles?.username || "Unknown",
+        username: s.user_id === uid
+          ? (myProfile?.username || "You")
+          : (profileMap[s.user_id]?.username || "Unknown"),
         score: s.score,
-      })).sort((a: LeaderboardEntry, b: LeaderboardEntry) => b.score - a.score);
+      })).sort((a, b) => b.score - a.score);
+
       setLeaderboard(entries);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,45 +113,58 @@ export default function FriendsPage() {
   };
 
   const sendRequest = async (addresseeId: string) => {
-    await supabase.from("friendships").insert({ requester_id: myId, addressee_id: addresseeId, status: "pending" });
-    setSearchResults(prev => prev.filter(p => p.id !== addresseeId));
+    const { error } = await supabase.from("friendships").insert({
+      requester_id: myId,
+      addressee_id: addresseeId,
+      status: "pending",
+    });
+    if (!error) {
+      setRequestSent(prev => [...prev, addresseeId]);
+      setSearchResults(prev => prev.filter(p => p.id !== addresseeId));
+    }
   };
 
   const acceptRequest = async (friendshipId: string) => {
     await supabase.from("friendships").update({ status: "accepted" }).eq("id", friendshipId);
-    loadFriends(myId);
+    loadAll(myId);
   };
 
   const declineRequest = async (friendshipId: string) => {
     await supabase.from("friendships").delete().eq("id", friendshipId);
-    loadFriends(myId);
+    loadAll(myId);
   };
 
   const medals = ["🥇", "🥈", "🥉"];
 
-  const tabBtn = (t: typeof tab, label: string) => (
+  const tabBtn = (t: typeof tab, label: string, count?: number) => (
     <button onClick={() => setTab(t)} style={{
-      flex: 1, padding: "10px", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const,
+      flex: 1, padding: "10px", borderRadius: "12px", border: "none", cursor: "pointer",
+      fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const,
       background: tab === t ? "white" : "transparent", color: tab === t ? "black" : "#52525b",
-    }}>{label}</button>
+    }}>
+      {label}{count ? ` (${count})` : ""}
+    </button>
   );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       <div style={{ paddingTop: "8px" }}>
-        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Friends</p>
-        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>{myUsername}</p>
+        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Social</p>
+        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>Friends</p>
       </div>
 
       {/* Pending requests */}
       {pending.length > 0 && (
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
+        <div style={{ background: "#18181b", border: "1px solid #f59e0b", borderRadius: "24px", overflow: "hidden" }}>
           <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#f59e0b", textTransform: "uppercase", padding: "16px 20px 8px" }}>
             {pending.length} Friend Request{pending.length > 1 ? "s" : ""}
           </p>
-          {pending.map((f: any) => (
+          {pending.map((f) => (
             <div key={f.id} style={{ display: "flex", alignItems: "center", padding: "12px 20px", borderTop: "1px solid #27272a", gap: "12px" }}>
-              <p style={{ flex: 1, color: "white", fontWeight: 600, fontSize: "14px" }}>{f.profiles?.username}</p>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#27272a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <p style={{ color: "white", fontWeight: 700, fontSize: "14px" }}>{f.otherUser.username?.[0]?.toUpperCase()}</p>
+              </div>
+              <p style={{ flex: 1, color: "white", fontWeight: 600, fontSize: "14px" }}>{f.otherUser.username}</p>
               <button onClick={() => declineRequest(f.id)} style={{ padding: "8px 14px", borderRadius: "10px", background: "none", border: "1px solid #27272a", color: "#71717a", fontSize: "11px", cursor: "pointer" }}>Decline</button>
               <button onClick={() => acceptRequest(f.id)} style={{ padding: "8px 14px", borderRadius: "10px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>Accept</button>
             </div>
@@ -123,15 +175,20 @@ export default function FriendsPage() {
       {/* Tabs */}
       <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "4px" }}>
         {tabBtn("leaderboard", "Board")}
-        {tabBtn("friends", `Friends ${friends.length > 0 ? `(${friends.length})` : ""}`)}
+        {tabBtn("friends", "Friends", friends.length || undefined)}
         {tabBtn("add", "Add")}
       </div>
 
-      {/* Leaderboard tab */}
+      {/* Leaderboard */}
       {tab === "leaderboard" && (
-        leaderboard.length === 0 ? (
+        loading ? (
+          <div style={{ padding: "40px", textAlign: "center" }}>
+            <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</p>
+          </div>
+        ) : leaderboard.length === 0 ? (
           <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
-            <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>Add friends to see leaderboard</p>
+            <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No scores yet today</p>
+            <p style={{ color: "#3f3f46", fontSize: "11px", marginTop: "8px" }}>Add friends and log your data to compete</p>
           </div>
         ) : (
           <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
@@ -139,11 +196,13 @@ export default function FriendsPage() {
               const isMe = entry.userId === myId;
               return (
                 <div key={entry.userId} style={{ display: "flex", alignItems: "center", gap: "16px", padding: "16px 20px", background: isMe ? "#27272a" : "transparent", borderBottom: i < leaderboard.length - 1 ? "1px solid #27272a" : "none" }}>
-                  <p style={{ fontSize: i < 3 ? "18px" : "13px", width: "24px", textAlign: "center", color: "#52525b", fontWeight: 700 }}>{i < 3 ? medals[i] : i + 1}</p>
+                  <p style={{ fontSize: i < 3 ? "20px" : "13px", width: "28px", textAlign: "center", color: "#52525b", fontWeight: 700 }}>
+                    {i < 3 ? medals[i] : i + 1}
+                  </p>
                   <p style={{ flex: 1, color: isMe ? "white" : "#a1a1aa", fontWeight: 600, fontSize: "14px" }}>
                     {entry.username} {isMe && <span style={{ color: "#52525b", fontSize: "11px" }}>(you)</span>}
                   </p>
-                  <p style={{ fontSize: "22px", fontWeight: 700, color: isMe ? "white" : "#71717a" }}>{entry.score}</p>
+                  <p style={{ fontSize: "24px", fontWeight: 700, color: isMe ? "white" : "#71717a" }}>{entry.score}</p>
                 </div>
               );
             })}
@@ -151,7 +210,7 @@ export default function FriendsPage() {
         )
       )}
 
-      {/* Friends list tab */}
+      {/* Friends list */}
       {tab === "friends" && (
         friends.length === 0 ? (
           <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
@@ -160,19 +219,19 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
-            {friends.map((f: any, i) => (
+            {friends.map((f, i) => (
               <div key={f.id} style={{ display: "flex", alignItems: "center", padding: "16px 20px", borderBottom: i < friends.length - 1 ? "1px solid #27272a" : "none" }}>
                 <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#27272a", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "12px" }}>
-                  <p style={{ color: "white", fontWeight: 700, fontSize: "14px" }}>{f.profiles?.username?.[0]?.toUpperCase()}</p>
+                  <p style={{ color: "white", fontWeight: 700, fontSize: "14px" }}>{f.otherUser.username?.[0]?.toUpperCase()}</p>
                 </div>
-                <p style={{ color: "white", fontWeight: 600, fontSize: "14px" }}>{f.profiles?.username}</p>
+                <p style={{ color: "white", fontWeight: 600, fontSize: "14px" }}>{f.otherUser.username}</p>
               </div>
             ))}
           </div>
         )
       )}
 
-      {/* Add friends tab */}
+      {/* Add friends */}
       {tab === "add" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <div style={{ display: "flex", gap: "8px" }}>
@@ -191,12 +250,23 @@ export default function FriendsPage() {
             <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
               {searchResults.map((p, i) => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderBottom: i < searchResults.length - 1 ? "1px solid #27272a" : "none" }}>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#27272a", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "12px" }}>
+                    <p style={{ color: "white", fontWeight: 700, fontSize: "13px" }}>{p.username?.[0]?.toUpperCase()}</p>
+                  </div>
                   <p style={{ flex: 1, color: "white", fontWeight: 600, fontSize: "14px" }}>{p.username}</p>
-                  <button onClick={() => sendRequest(p.id)} style={{ padding: "8px 16px", borderRadius: "10px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>
-                    Add
+                  <button
+                    onClick={() => sendRequest(p.id)}
+                    disabled={requestSent.includes(p.id)}
+                    style={{ padding: "8px 16px", borderRadius: "10px", background: requestSent.includes(p.id) ? "#27272a" : "white", border: "none", color: requestSent.includes(p.id) ? "#52525b" : "black", fontWeight: 700, fontSize: "11px", cursor: requestSent.includes(p.id) ? "default" : "pointer" }}>
+                    {requestSent.includes(p.id) ? "Sent ✓" : "Add"}
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+          {searchResults.length === 0 && search && (
+            <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "24px 20px", textAlign: "center" }}>
+              <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No users found</p>
             </div>
           )}
         </div>
