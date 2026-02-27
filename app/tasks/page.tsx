@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getTasksForDate, upsertTask, toggleTask } from "@/lib/supabase/queries";
+import { getTasksForDate, toggleTask } from "@/lib/supabase/queries";
 import { supabase } from "@/lib/supabase/client";
 import { computeMomentum } from "@/lib/momentum/engine";
 import TaskItem from "@/components/tasks/TaskItem";
@@ -24,19 +24,6 @@ export default function TasksPage() {
 
   const handleToggle = async (id: string) => {
     await toggleTask(id);
-    await computeMomentum(today);
-    load();
-  };
-
-  const handleAdd = async (title: string, priority: number) => {
-    await upsertTask({
-      id: Math.random().toString(36).slice(2),
-      date: today,
-      title,
-      completed: false,
-      priority: priority as 1 | 2 | 3,
-      createdAt: Date.now(),
-    });
     await computeMomentum(today);
     load();
   };
@@ -68,7 +55,6 @@ export default function TasksPage() {
         <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>{format(new Date(), "EEEE, MMM d")}</p>
       </div>
 
-      {/* Progress card */}
       <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "12px" }}>
           <div>
@@ -82,7 +68,7 @@ export default function TasksPage() {
         </div>
       </div>
 
-      <AddTaskBar onAdd={handleAdd} />
+      <AddTaskBar onAdd={load} />
 
       {tasks.length === 0 ? (
         <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
@@ -94,13 +80,7 @@ export default function TasksPage() {
           {tasks
             .sort((a, b) => a.priority - b.priority || (a.completed ? 1 : -1))
             .map(task => (
-              <TaskItem
-                key={task.id}
-                task={task}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-                onEdit={handleEdit}
-              />
+              <TaskItem key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} onEdit={handleEdit} />
             ))}
         </div>
       )}

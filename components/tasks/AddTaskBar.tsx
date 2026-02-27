@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
-import type { Task } from "@/types";
-import { upsertTask } from "@/lib/db/queries";
+import { upsertTask } from "@/lib/supabase/queries";
+import { computeMomentum } from "@/lib/momentum/engine";
 import { format } from "date-fns";
 
 interface Props {
@@ -14,46 +14,40 @@ export default function AddTaskBar({ onAdd }: Props) {
 
   const submit = async () => {
     if (!title.trim()) return;
-    const task: Task = {
+    const today = format(new Date(), "yyyy-MM-dd");
+    await upsertTask({
       id: Math.random().toString(36).slice(2),
-      date: format(new Date(), "yyyy-MM-dd"),
+      date: today,
       title: title.trim(),
       completed: false,
       priority,
       createdAt: Date.now(),
-    };
-    await upsertTask(task);
+    });
+    await computeMomentum(today);
     setTitle("");
     onAdd();
   };
 
   return (
-    <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-5 space-y-3">
-      <p className="text-[10px] font-semibold tracking-widest text-zinc-500 uppercase">Add Task</p>
+    <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+      <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Add Task</p>
       <input
         placeholder="What needs to get done?"
         value={title}
         onChange={e => setTitle(e.target.value)}
         onKeyDown={e => e.key === "Enter" && submit()}
-        className="w-full bg-zinc-800 rounded-2xl px-4 py-3 text-white text-sm placeholder-zinc-600 outline-none"
+        style={{ width: "100%", background: "#27272a", border: "none", borderRadius: "14px", padding: "12px 16px", color: "white", fontSize: "14px", outline: "none", boxSizing: "border-box" as const }}
       />
-      <div className="flex items-center gap-3">
-        <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Priority</p>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <p style={{ fontSize: "10px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", flexShrink: 0 }}>Priority</p>
         {([1, 2, 3] as const).map(p => (
-          <button
-            key={p}
-            onClick={() => setPriority(p)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold tracking-widest transition-colors ${
-              priority === p ? "bg-white text-black" : "bg-zinc-800 text-zinc-500"
-            }`}
-          >
+          <button key={p} onClick={() => setPriority(p)}
+            style={{ padding: "8px 14px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", background: priority === p ? "white" : "#27272a", color: priority === p ? "black" : "#52525b" }}>
             {p === 1 ? "High" : p === 2 ? "Mid" : "Low"}
           </button>
         ))}
-        <button
-          onClick={submit}
-          className="ml-auto px-5 py-2 rounded-xl bg-white text-black text-xs font-semibold tracking-widest"
-        >
+        <button onClick={submit}
+          style={{ marginLeft: "auto", padding: "8px 18px", borderRadius: "10px", background: title.trim() ? "white" : "#27272a", border: "none", color: title.trim() ? "black" : "#52525b", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>
           Add
         </button>
       </div>
