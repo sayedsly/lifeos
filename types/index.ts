@@ -44,7 +44,8 @@ export interface NutritionEntry {
   fat: number;
   fiber: number;
   vitamins?: Vitamins;
-  source: "voice" | "manual" | "quick";
+  source: "voice" | "manual" | "quick" | "search";
+  meal?: MealCategory;
 }
 
 export interface HydrationEntry {
