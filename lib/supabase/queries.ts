@@ -252,3 +252,25 @@ export async function getLeaderboard(): Promise<Array<{ username: string; score:
     date: r.date,
   }));
 }
+
+export async function getCurrentStreak(): Promise<number> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  const { data } = await supabase
+    .from("momentum_snapshots")
+    .select("date, score")
+    .eq("user_id", user.id)
+    .order("date", { ascending: false })
+    .limit(60);
+  if (!data || data.length === 0) return 0;
+  let streak = 0;
+  const today = format(new Date(), "yyyy-MM-dd");
+  for (let i = 0; i < 60; i++) {
+    const d = format(subDays(new Date(), i), "yyyy-MM-dd");
+    const snap = data.find(s => s.date === d);
+    if (snap && snap.score > 0) streak++;
+    else if (d === today) continue; // today might not be logged yet
+    else break;
+  }
+  return streak;
+}

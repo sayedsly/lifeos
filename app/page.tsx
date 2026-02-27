@@ -10,10 +10,12 @@ import TrendGraph from "@/components/momentum/TrendGraph";
 import SleepLogModal from "@/components/momentum/SleepLogModal";
 import HydrationHistory from "@/components/momentum/HydrationHistory";
 import SleepHistory from "@/components/momentum/SleepHistory";
+import StreakCard from "@/components/momentum/StreakCard";
 import Onboarding from "@/components/Onboarding";
 import {
   getMomentumForDate, getHydrationForDate, getSleepForDate,
-  getSettings, addHydrationEntry, getLast7DaysMomentum, getStepsForDate,
+  getSettings, addHydrationEntry, getLast7DaysMomentum,
+  getStepsForDate, getCurrentStreak,
 } from "@/lib/supabase/queries";
 import { computeMomentum } from "@/lib/momentum/engine";
 import type { SleepEntry, MomentumSnapshot } from "@/types";
@@ -33,15 +35,23 @@ export default function HomePage() {
   const [stepGoal, setStepGoal] = useState(10000);
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [trend, setTrend] = useState<MomentumSnapshot[]>([]);
+  const [streak, setStreak] = useState(0);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   const loadAll = async () => {
     try {
-      const [s, h, sl, stepCount, trendData] = await Promise.all([
-        getSettings(), getHydrationForDate(today()), getSleepForDate(today()),
-        getStepsForDate(today()), getLast7DaysMomentum(),
+      // All queries in parallel
+      const [s, h, sl, stepCount, trendData, streakCount, prevMomentum] = await Promise.all([
+        getSettings(),
+        getHydrationForDate(today()),
+        getSleepForDate(today()),
+        getStepsForDate(today()),
+        getLast7DaysMomentum(),
+        getCurrentStreak(),
+        getMomentumForDate(format(subDays(new Date(), 1), "yyyy-MM-dd")),
       ]);
+
       setHydrationGoal(s.hydrationGoal);
       setSleepGoal(s.sleepGoal);
       setStepGoal(s.stepGoal);
@@ -49,8 +59,12 @@ export default function HomePage() {
       setSleep(sl || null);
       setSteps(stepCount);
       setTrend(trendData);
-      refreshMomentum();
+      setStreak(streakCount);
       if (!s.name || s.name === "You") setShowOnboarding(true);
+      refreshMomentum();
+
+      // Set delta after momentum loads
+      if (prevMomentum && momentum) setDelta(momentum.score - prevMomentum.score);
     } catch (e) {
       console.error("Load error:", e);
     } finally {
@@ -103,6 +117,7 @@ export default function HomePage() {
         <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>{format(new Date(), "EEEE, MMM d")}</p>
       </div>
       <MomentumCard snapshot={momentum} delta={delta} />
+      <StreakCard streak={streak} />
       <TrendGraph data={trend} />
       <div onClick={async (e) => {
         const btn = (e.target as HTMLElement).closest("button[data-amount]");
