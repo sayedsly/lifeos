@@ -8,14 +8,10 @@ import SleepCard from "@/components/momentum/SleepCard";
 import StepsCard from "@/components/momentum/StepsCard";
 import TrendGraph from "@/components/momentum/TrendGraph";
 import SleepLogModal from "@/components/momentum/SleepLogModal";
+import Onboarding from "@/components/Onboarding";
 import {
-  getMomentumForDate,
-  getHydrationForDate,
-  getSleepForDate,
-  getSettings,
-  addHydrationEntry,
-  getLast7DaysMomentum,
-  getStepsForDate,
+  getMomentumForDate, getHydrationForDate, getSleepForDate,
+  getSettings, addHydrationEntry, getLast7DaysMomentum, getStepsForDate,
 } from "@/lib/supabase/queries";
 import { computeMomentum } from "@/lib/momentum/engine";
 import type { SleepEntry, MomentumSnapshot } from "@/types";
@@ -36,6 +32,7 @@ export default function HomePage() {
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [trend, setTrend] = useState<MomentumSnapshot[]>([]);
   const [ready, setReady] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const loadAll = async () => {
     try {
@@ -54,6 +51,8 @@ export default function HomePage() {
       setSteps(stepCount);
       setTrend(trendData);
       refreshMomentum();
+      // Show onboarding if name is still default
+      if (!s.name || s.name === "You") setShowOnboarding(true);
     } catch (e) {
       console.error("Load error:", e);
     } finally {
@@ -93,6 +92,10 @@ export default function HomePage() {
     <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</p>
     </div>
+  );
+
+  if (showOnboarding) return (
+    <Onboarding onComplete={() => { setShowOnboarding(false); loadAll(); }} />
   );
 
   return (
