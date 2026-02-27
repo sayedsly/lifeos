@@ -34,7 +34,7 @@ export default function TasksPage() {
       date: today,
       title,
       completed: false,
-      priority,
+      priority: priority as 1 | 2 | 3,
       created_at: Date.now(),
     });
     await computeMomentum(today);
