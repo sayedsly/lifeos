@@ -30,6 +30,8 @@ export interface Vitamins {
   calcium?: number;
 }
 
+export type MealCategory = "breakfast" | "lunch" | "dinner" | "snack" | "supplement" | "uncategorized";
+
 export interface NutritionEntry {
   id: string;
   date: string;

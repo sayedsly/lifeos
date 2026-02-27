@@ -5,10 +5,11 @@ import NutritionSummaryCard from "@/components/nutrition/NutritionSummaryCard";
 import FoodLogList from "@/components/nutrition/FoodLogList";
 import QuickAddBar from "@/components/nutrition/QuickAddBar";
 import {
-  getNutritionForDate, getNutritionTotals, getSettings, deleteNutritionEntry,
+  getNutritionForDate, getNutritionTotals, getSettings,
+  deleteNutritionEntry, addNutritionEntry,
 } from "@/lib/supabase/queries";
 import { computeMomentum } from "@/lib/momentum/engine";
-import type { MacroTargets, NutritionEntry } from "@/types";
+import type { MacroTargets, NutritionEntry, MealCategory } from "@/types";
 import { format, subDays } from "date-fns";
 
 export default function NutritionPage() {
@@ -53,6 +54,18 @@ export default function NutritionPage() {
     refreshMomentum();
   };
 
+  const handleQuickAdd = async (entry: NutritionEntry) => {
+    await addNutritionEntry({
+      ...entry,
+      id: Math.random().toString(36).slice(2),
+      date: selectedDate,
+      timestamp: Date.now(),
+    });
+    await computeMomentum(selectedDate);
+    await refresh();
+    refreshMomentum();
+  };
+
   const days = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), "yyyy-MM-dd"));
 
   const tabBtn = (t: typeof tab, label: string) => (
@@ -63,9 +76,18 @@ export default function NutritionPage() {
     }}>{label}</button>
   );
 
+  // Guess meal based on time of day
+  const guessMeal = (): MealCategory => {
+    const h = new Date().getHours();
+    if (h < 10) return "breakfast";
+    if (h < 13) return "lunch";
+    if (h < 17) return "snack";
+    if (h < 21) return "dinner";
+    return "snack";
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      {/* Header */}
       <div style={{ paddingTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
           <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Nutrition</p>
@@ -94,17 +116,14 @@ export default function NutritionPage() {
         })}
       </div>
 
-      {/* Summary */}
       <NutritionSummaryCard totals={totals} targets={targets} />
 
-      {/* Tabs */}
       <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "4px" }}>
         {tabBtn("log", "📋 Log")}
         {tabBtn("add", "➕ Add")}
         {tabBtn("history", "📊 History")}
       </div>
 
-      {/* Log tab */}
       {tab === "log" && (
         entries.length === 0 ? (
           <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
@@ -114,16 +133,14 @@ export default function NutritionPage() {
             </button>
           </div>
         ) : (
-          <FoodLogList entries={entries} onDelete={handleDelete} />
+          <FoodLogList entries={entries} onDelete={handleDelete} onQuickAdd={handleQuickAdd} />
         )
       )}
 
-      {/* Add tab */}
       {tab === "add" && (
-        <QuickAddBar onAdd={async () => { await refresh(); setTab("log"); refreshMomentum(); }} />
+        <QuickAddBar defaultMeal={guessMeal()} onAdd={async () => { await refresh(); setTab("log"); refreshMomentum(); }} />
       )}
 
-      {/* History tab */}
       {tab === "history" && (
         historyLoading ? (
           <div style={{ padding: "40px", textAlign: "center" }}>
@@ -134,8 +151,7 @@ export default function NutritionPage() {
             {history.map((h, i) => {
               const isToday = h.date === today;
               const calPct = Math.min(h.totals.calories / targets.calories, 1);
-              const protPct = Math.min(h.totals.protein / targets.protein, 1);
-              const hit = calPct >= 0.8 && protPct >= 0.8;
+              const hit = calPct >= 0.8 && h.totals.protein >= targets.protein * 0.8;
               return (
                 <div key={h.date} onClick={() => { setSelectedDate(h.date); setTab("log"); }}
                   style={{ padding: "14px 20px", borderBottom: i < history.length - 1 ? "1px solid #27272a" : "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px" }}>
@@ -144,14 +160,13 @@ export default function NutritionPage() {
                     <p style={{ color: isToday ? "white" : "#a1a1aa", fontWeight: 600, fontSize: "13px" }}>
                       {isToday ? "Today" : format(new Date(h.date + "T12:00:00"), "EEE, MMM d")}
                     </p>
-                    <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-                      <div style={{ height: "2px", flex: calPct, background: "#34d399", borderRadius: "999px", maxWidth: `${calPct * 60}px` }} />
-                      <div style={{ height: "2px", flex: 1 - calPct, background: "#27272a", borderRadius: "999px" }} />
-                    </div>
+                    <p style={{ color: "#52525b", fontSize: "10px", marginTop: "2px" }}>
+                      {h.totals.protein > 0 ? `${Math.round(h.totals.protein)}g protein · ${Math.round(h.totals.fiber || 0)}g fiber` : "Not logged"}
+                    </p>
                   </div>
                   <div style={{ textAlign: "right" }}>
                     <p style={{ color: h.totals.calories === 0 ? "#3f3f46" : "white", fontSize: "14px", fontWeight: 700 }}>
-                      {h.totals.calories === 0 ? "—" : `${Math.round(h.totals.calories)}`}
+                      {h.totals.calories === 0 ? "—" : Math.round(h.totals.calories)}
                     </p>
                     <p style={{ color: "#52525b", fontSize: "10px" }}>kcal</p>
                   </div>
