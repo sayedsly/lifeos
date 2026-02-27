@@ -129,7 +129,7 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
       {/* Meal selector */}
       <div style={{ display: "flex", gap: "6px", overflowX: "auto" as const, paddingBottom: "2px" }}>
         {MEALS.map(m => (
-          <button key={m.key} onClick={() => setMeal(m.key)} style={{ flexShrink: 0, padding: "8px 14px", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, background: meal === m.key ? "white" : "#18181b", color: meal === m.key ? "black" : "#52525b", border: meal === m.key ? "none" : "1px solid #27272a" } as any}>
+          <button key={m.key} onClick={() => setMeal(m.key)} style={{ flexShrink: 0, padding: "8px 14px", borderRadius: "12px", border: meal === m.key ? "none" : "1px solid #27272a", cursor: "pointer", fontSize: "11px", fontWeight: 700, background: meal === m.key ? "white" : "#18181b", color: meal === m.key ? "black" : "#52525b" }}>
             {m.label}
           </button>
         ))}
