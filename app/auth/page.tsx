@@ -63,6 +63,12 @@ export default function AuthPage() {
           style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>
           {mode === "login" ? "No account? Sign up →" : "Have an account? Sign in →"}
         </button>
+        {mode === "login" && (
+          <button onClick={() => router.push("/auth/reset")}
+            style={{ background: "none", border: "none", color: "#3f3f46", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>
+            Forgot password?
+          </button>
+        )}
       </div>
     </div>
   );

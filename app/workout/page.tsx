@@ -93,7 +93,7 @@ export default function WorkoutPage() {
       <button onClick={() => setMode("select")} style={{ width: "100%", padding: "16px", borderRadius: "16px", border: "1px solid #27272a", color: "#71717a", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", background: "none", cursor: "pointer" }}>
         Back
       </button>
-      <WorkoutHistory sessions={sessions} />
+      <WorkoutHistory />
     </div>
   );
 
@@ -129,7 +129,7 @@ export default function WorkoutPage() {
         </div>
       </div>
 
-      <WorkoutHistory sessions={sessions} />
+      <WorkoutHistory />
     </div>
   );
 }
