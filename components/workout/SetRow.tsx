@@ -14,7 +14,7 @@ export default function SetRow({ set, index, onChange, onComplete }: Props) {
       <p className="text-zinc-600 text-xs w-4 text-center">{index + 1}</p>
       <input
         type="number"
-        placeholder="kg"
+        placeholder="lbs"
         value={set.weight || ""}
         onChange={e => onChange({ ...set, weight: parseFloat(e.target.value) || 0 })}
         className="flex-1 bg-zinc-800 rounded-xl px-3 py-2.5 text-white text-sm text-center outline-none placeholder-zinc-700"

@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { getLastSessionForType } from "@/lib/supabase/queries";
 import type { WorkoutSession } from "@/types";
 import WorkoutTypeSelector from "@/components/workout/WorkoutTypeSelector";
 import QuickLogForm from "@/components/workout/QuickLogForm";
 import StructuredSession from "@/components/workout/StructuredSession";
 import WorkoutHistory from "@/components/workout/WorkoutHistory";
+import WorkoutPlans from "@/components/workout/WorkoutPlans";
 import { format } from "date-fns";
 
 type Mode = "select" | "quick" | "structured" | "done";
@@ -15,6 +17,9 @@ export default function WorkoutPage() {
   const [selectedType, setSelectedType] = useState("Push");
   const [sessions, setSessions] = useState<WorkoutSession[]>([]);
   const [todaySession, setTodaySession] = useState<WorkoutSession | null>(null);
+  const [tab, setTab] = useState<"start" | "plans" | "history">("start");
+  const [activePlan, setActivePlan] = useState<any>(null);
+  const [lastSession, setLastSession] = useState<any>(null);
 
   const load = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -36,7 +41,28 @@ export default function WorkoutPage() {
 
   useEffect(() => { load(); }, []);
 
+  const handleStartPlan = async (plan: any) => {
+    setActivePlan(plan);
+    setSelectedType(plan.type);
+    const last = await getLastSessionForType(plan.type);
+    setLastSession(last);
+    setMode("structured");
+  };
+
+  const handleStartStructured = async () => {
+    const last = await getLastSessionForType(selectedType);
+    setLastSession(last);
+    setActivePlan(null);
+    setMode("structured");
+  };
+
   const onSave = () => { load(); setMode("done"); };
+
+  const tabBtn = (t: typeof tab, label: string) => (
+    <button onClick={() => setTab(t)} style={{ flex: 1, padding: "10px", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: tab === t ? "white" : "transparent", color: tab === t ? "black" : "#52525b" }}>
+      {label}
+    </button>
+  );
 
   if (mode === "quick") return (
     <div className="space-y-4">
@@ -55,9 +81,17 @@ export default function WorkoutPage() {
     <div className="space-y-4">
       <div className="pt-2 pb-1">
         <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Workout</p>
-        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>{selectedType} Day</p>
+        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>
+          {activePlan ? activePlan.name : `${selectedType} Day`}
+        </p>
       </div>
-      <StructuredSession type={selectedType} onSave={onSave} onCancel={() => setMode("select")} />
+      <StructuredSession
+        type={selectedType}
+        planExercises={activePlan?.exercises}
+        lastSession={lastSession}
+        onSave={onSave}
+        onCancel={() => { setMode("select"); setActivePlan(null); }}
+      />
     </div>
   );
 
@@ -111,25 +145,31 @@ export default function WorkoutPage() {
         </div>
       )}
 
-      <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-        <WorkoutTypeSelector selected={selectedType} onSelect={setSelectedType} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-          <button
-            onClick={() => setMode("quick")}
-            style={{ padding: "16px", borderRadius: "16px", border: "1px solid #3f3f46", color: "#d4d4d8", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", background: "none", cursor: "pointer" }}
-          >
-            Quick Log
-          </button>
-          <button
-            onClick={() => setMode("structured")}
-            style={{ padding: "16px", borderRadius: "16px", background: "white", color: "black", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", border: "none", cursor: "pointer" }}
-          >
-            Start Session
-          </button>
-        </div>
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "4px" }}>
+        {tabBtn("start", "🏋️ Start")}
+        {tabBtn("plans", "📋 Plans")}
+        {tabBtn("history", "📊 History")}
       </div>
 
-      <WorkoutHistory />
+      {tab === "start" && (
+        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
+          <WorkoutTypeSelector selected={selectedType} onSelect={setSelectedType} />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            <button onClick={() => setMode("quick")}
+              style={{ padding: "16px", borderRadius: "16px", border: "1px solid #3f3f46", color: "#d4d4d8", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: "none", cursor: "pointer" }}>
+              Quick Log
+            </button>
+            <button onClick={handleStartStructured}
+              style={{ padding: "16px", borderRadius: "16px", background: "white", color: "black", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, border: "none", cursor: "pointer" }}>
+              Start Session
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === "plans" && <WorkoutPlans onStartPlan={handleStartPlan} />}
+      {tab === "history" && <WorkoutHistory />}
     </div>
   );
 }

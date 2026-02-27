@@ -47,7 +47,7 @@ export default function ExerciseBlock({ exercise, onChange }: Props) {
       </div>
       <div className="flex text-[9px] text-zinc-600 uppercase tracking-widest px-1 gap-3">
         <p className="w-4" />
-        <p className="flex-1 text-center">KG</p>
+        <p className="flex-1 text-center">LBS</p>
         <p className="w-3" />
         <p className="flex-1 text-center">Reps</p>
         <p className="w-9" />

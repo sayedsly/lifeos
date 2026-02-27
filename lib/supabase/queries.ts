@@ -310,3 +310,33 @@ export async function seedRecurringTasksForToday(date: string) {
     .map(r => ({ id: `${r.id}-${date}`, user_id: userId, title: r.title, priority: r.priority, completed: false, date, created_at: Date.now() }));
   if (toInsert.length > 0) await supabase.from("tasks").insert(toInsert);
 }
+
+// --- Workout Plans ---
+export async function getWorkoutPlans() {
+  const userId = await getUserId();
+  const { data } = await supabase.from("workout_plans").select("*").eq("user_id", userId).order("created_at");
+  return data || [];
+}
+
+export async function saveWorkoutPlan(plan: { id: string; name: string; type: string; exercises: any[] }) {
+  const userId = await getUserId();
+  await supabase.from("workout_plans").upsert({ ...plan, user_id: userId, created_at: Date.now() });
+}
+
+export async function deleteWorkoutPlan(id: string) {
+  await supabase.from("workout_plans").delete().eq("id", id);
+}
+
+export async function getLastSessionForType(type: string) {
+  const userId = await getUserId();
+  const { data } = await supabase
+    .from("workout_sessions")
+    .select("exercises, date")
+    .eq("user_id", userId)
+    .eq("type", type)
+    .eq("completed", true)
+    .order("date", { ascending: false })
+    .limit(2);
+  // Return second most recent (most recent would be current)
+  return data?.[0] || null;
+}
