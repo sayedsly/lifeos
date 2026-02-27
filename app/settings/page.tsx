@@ -58,14 +58,22 @@ export default function SettingsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div style={{ paddingTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-        <div>
-          <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Settings</p>
-          <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>Your Profile</p>
-        </div>
-        <Link href="/leaderboard" style={{ fontSize: "10px", color: "#52525b", letterSpacing: "0.15em", textTransform: "uppercase", textDecoration: "none" }}>
-          🏆 Leaderboard
-        </Link>
+      <div style={{ paddingTop: "8px" }}>
+        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>More</p>
+        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>Settings</p>
+      </div>
+
+      {/* Quick links */}
+      <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
+        {[
+          { href: "/workout", label: "💪 Workout" },
+          { href: "/finance", label: "💰 Finance & Goals" },
+          { href: "/leaderboard", label: "🏆 Leaderboard" },
+        ].map(({ href, label }, i, arr) => (
+          <Link key={href} href={href} style={{ display: "block", padding: "16px 20px", color: "#a1a1aa", fontSize: "13px", fontWeight: 500, textDecoration: "none", borderBottom: i < arr.length - 1 ? "1px solid #27272a" : "none" }}>
+            {label} →
+          </Link>
+        ))}
       </div>
 
       {section("Profile", field("Display Name", s.name, v => update({ name: v }), "text"))}
@@ -99,14 +107,14 @@ export default function SettingsPage() {
                 {pushLoading ? "..." : subscribed ? "Disable" : "Enable"}
               </button>
             </div>
-            {(pushError) && (
+            {pushError && (
               <p style={{ color: "#f87171", fontSize: "12px", background: "#27272a", padding: "12px 16px", borderRadius: "12px", wordBreak: "break-all" as const }}>
                 {pushError}
               </p>
             )}
             {subscribed && (
               <button onClick={handleTest}
-                style={{ width: "100%", padding: "12px", borderRadius: "12px", background: testStatus === "Sending..." ? "#27272a" : "none", border: "1px solid #27272a", color: testStatus.includes("Error") ? "#f87171" : testStatus.includes("Sent") ? "#34d399" : "#71717a", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer", transition: "all 300ms" }}>
+                style={{ width: "100%", padding: "12px", borderRadius: "12px", background: "none", border: "1px solid #27272a", color: testStatus.includes("Error") ? "#f87171" : testStatus.includes("Sent") ? "#34d399" : "#71717a", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
                 {testStatus || "Send Test Notification"}
               </button>
             )}
@@ -115,18 +123,6 @@ export default function SettingsPage() {
           <p style={{ color: "#52525b", fontSize: "12px" }}>Push notifications not supported in this browser.</p>
         )
       )}
-
-      <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
-        <Link href="/finance" style={{ display: "block", padding: "16px 20px", color: "#a1a1aa", fontSize: "13px", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid #27272a" }}>
-          💰 Finance & Goals →
-        </Link>
-        <Link href="/friends" style={{ display: "block", padding: "16px 20px", color: "#a1a1aa", fontSize: "13px", fontWeight: 500, textDecoration: "none", borderBottom: "1px solid #27272a" }}>
-          👥 Friends →
-        </Link>
-        <Link href="/leaderboard" style={{ display: "block", padding: "16px 20px", color: "#a1a1aa", fontSize: "13px", fontWeight: 500, textDecoration: "none" }}>
-          🏆 Leaderboard →
-        </Link>
-      </div>
 
       <button onClick={save} style={{
         width: "100%", padding: "16px", borderRadius: "16px",
