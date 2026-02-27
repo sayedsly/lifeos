@@ -37,6 +37,7 @@ export async function getSettings(): Promise<UserSettings> {
       tokensUsed: data.tokens_used,
       tokensResetDate: new Date().toISOString().slice(0, 10),
       homeWidgets: data.home_widgets ?? { streak: true, trendGraph: true, hydrationChart: true, sleepChart: true },
+      navConfig: data.nav_config ?? ["nutrition","tasks","friends"],
     };
   }
 
@@ -52,6 +53,7 @@ export async function getSettings(): Promise<UserSettings> {
     tokensUsed: 0,
     tokensResetDate: new Date().toISOString().slice(0, 10),
       homeWidgets: data.home_widgets ?? { streak: true, trendGraph: true, hydrationChart: true, sleepChart: true },
+      navConfig: data.nav_config ?? ["nutrition","tasks","friends"],
   };
 
   await supabase.from("user_settings").insert({
@@ -79,6 +81,7 @@ export async function updateSettings(patch: Partial<UserSettings>) {
   if (patch.momentumWeights) update.momentum_weights = patch.momentumWeights;
   if (patch.tokensUsed !== undefined) update.tokens_used = patch.tokensUsed;
   if ((patch as any).homeWidgets) update.home_widgets = (patch as any).homeWidgets;
+  if ((patch as any).navConfig) update.nav_config = (patch as any).navConfig;
   await supabase.from("user_settings").update(update).eq("user_id", userId);
 }
 

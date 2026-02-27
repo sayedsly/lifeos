@@ -160,6 +160,7 @@ export interface UserSettings {
   tokensUsed: number;
   tokensResetDate: string;
   homeWidgets?: { streak: boolean; trendGraph: boolean; hydrationChart: boolean; sleepChart: boolean };
+  navConfig?: string[];
 }
 
 export interface ParsedIntent {

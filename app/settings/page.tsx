@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
   const [homeWidgets, setHomeWidgets] = useState({ streak: true, trendGraph: true, hydrationChart: true, sleepChart: true });
+  const [navConfig, setNavConfig] = useState(["nutrition", "tasks", "friends"]);
   const { signOut } = useAuthStore();
   const router = useRouter();
   const { supported, subscribed, loading: pushLoading, error: pushError, subscribe, unsubscribe } = usePushNotifications();
@@ -23,6 +24,7 @@ export default function SettingsPage() {
       setS(s);
       if (s.momentumWeights) setWeights(s.momentumWeights as typeof DEFAULT_WEIGHTS);
       if (s.homeWidgets) setHomeWidgets(s.homeWidgets);
+    if (s.navConfig) setNavConfig(s.navConfig.slice(0, 3));
     });
   }, []);
 
@@ -34,7 +36,7 @@ export default function SettingsPage() {
 
   const save = async () => {
     if (!s) return;
-    await updateSettings({ ...s, momentumWeights: weights, homeWidgets } as any);
+    await updateSettings({ ...s, momentumWeights: weights, homeWidgets, navConfig } as any);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -121,6 +123,48 @@ export default function SettingsPage() {
           <p style={{ color: "#f87171", fontSize: "11px" }}>Total must equal exactly 100 to save.</p>
         )}
       </>)}
+
+
+      {/* Nav customization */}
+      {section("Bottom Nav", (() => {
+        const ALL_MODULES = [
+          { key: "nutrition", label: "Nutrition" },
+          { key: "tasks", label: "Tasks" },
+          { key: "friends", label: "Friends" },
+          { key: "workout", label: "Workout" },
+          { key: "finance", label: "Finance" },
+        ];
+        const toggleNav = (key: string) => {
+          setNavConfig(prev => {
+            if (prev.includes(key)) return prev.filter(k => k !== key);
+            if (prev.length >= 3) return prev;
+            return [...prev, key];
+          });
+        };
+        return (
+          <>
+            <p style={{ color: "#52525b", fontSize: "12px", lineHeight: "1.5" }}>
+              Choose up to 3 modules for your nav bar. Home and More are always pinned.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {ALL_MODULES.map(({ key, label }) => {
+                const selected = navConfig.includes(key);
+                const disabled = !selected && navConfig.length >= 3;
+                return (
+                  <button key={key} onClick={() => toggleNav(key)} disabled={disabled}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderRadius: "14px", background: selected ? "#27272a" : "none", border: `1px solid ${selected ? "white" : "#27272a"}`, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.4 : 1 }}>
+                    <p style={{ color: selected ? "white" : "#71717a", fontWeight: 600, fontSize: "14px" }}>{label}</p>
+                    {selected && <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" }}>#{navConfig.indexOf(key) + 1}</p>}
+                  </button>
+                );
+              })}
+            </div>
+            <p style={{ color: "#3f3f46", fontSize: "11px", textAlign: "center" }}>
+              {navConfig.length}/3 selected
+            </p>
+          </>
+        );
+      })())}
 
       {/* Home widgets */}
       {section("Home Screen", <>
