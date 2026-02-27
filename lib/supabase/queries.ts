@@ -3,7 +3,7 @@ import { supabase } from "./client";
 import type {
   NutritionEntry, HydrationEntry, SleepEntry,
   Task, MomentumSnapshot, UserSettings, MacroTargets,
-  WorkoutSession, FinanceGoal, FinanceTransaction, StepEntry
+  WorkoutSession, FinanceGoal, FinanceTransaction, StepEntry,
   RecurringTask,
 } from "@/types";
 
