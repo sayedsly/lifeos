@@ -49,11 +49,17 @@ export default function HealthSync() {
   const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
-    Promise.all([getWebhookToken(), getHealthSyncLog()]).then(([t, log]) => {
-      setToken(t);
-      setSyncLog(log);
-      setLoading(false);
-    });
+    const load = () => {
+      Promise.all([getWebhookToken(), getHealthSyncLog()]).then(([t, log]) => {
+        setToken(t);
+        setSyncLog(log);
+        setLoading(false);
+      });
+    };
+    load();
+    // Refresh every 10 seconds
+    const interval = setInterval(load, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const generate = async () => {
