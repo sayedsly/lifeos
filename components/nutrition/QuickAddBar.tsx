@@ -71,7 +71,7 @@ export default function QuickAddBar({ onAdd }: Props) {
         carbs: Math.round(selected.carbs * qty * 10) / 10,
         fat: Math.round(selected.fat * qty * 10) / 10,
         fiber: Math.round(selected.fiber * qty * 10) / 10,
-        source: "search",
+        source: "voice",
       });
       setSelected(null);
       setQuery("");
@@ -95,7 +95,7 @@ export default function QuickAddBar({ onAdd }: Props) {
         carbs: parseFloat(manual.carbs) || 0,
         fat: parseFloat(manual.fat) || 0,
         fiber: parseFloat(manual.fiber) || 0,
-        source: "manual",
+        source: "voice",
       });
       setManual({ food: "", calories: "", protein: "", carbs: "", fat: "", fiber: "" });
       onAdd();
