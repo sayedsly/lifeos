@@ -22,7 +22,7 @@ export default function SettingsPage() {
     getSettings().then(s => {
       setS(s);
       if (s.momentumWeights) setWeights(s.momentumWeights as typeof DEFAULT_WEIGHTS);
-      if ((s as any).homeWidgets) setHomeWidgets((s as any).homeWidgets);
+      if (s.homeWidgets) setHomeWidgets(s.homeWidgets);
     });
   }, []);
 

@@ -124,10 +124,10 @@ export default function HomePage() {
     <Onboarding onComplete={() => { setShowOnboarding(false); loadAll(); }} />
   );
 
-  const showStreak = (settings as any)?.homeWidgets?.streak !== false;
-  const showHydrationChart = (settings as any)?.homeWidgets?.hydrationChart !== false;
-  const showSleepChart = (settings as any)?.homeWidgets?.sleepChart !== false;
-  const showTrend = (settings as any)?.homeWidgets?.trendGraph !== false;
+  const showStreak = settings?.homeWidgets?.streak !== false;
+  const showHydrationChart = settings?.homeWidgets?.hydrationChart !== false;
+  const showSleepChart = settings?.homeWidgets?.sleepChart !== false;
+  const showTrend = settings?.homeWidgets?.trendGraph !== false;
 
   return (
     <div className="space-y-4">

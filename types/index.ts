@@ -152,6 +152,7 @@ export interface UserSettings {
   monthlyTokenBudget: number;
   tokensUsed: number;
   tokensResetDate: string;
+  homeWidgets?: { streak: boolean; trendGraph: boolean; hydrationChart: boolean; sleepChart: boolean };
 }
 
 export interface ParsedIntent {
