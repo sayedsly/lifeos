@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { parseIntent } from "@/lib/voice/parser";
 import { executeIntent } from "@/lib/voice/router";
 import type { ParsedIntent } from "@/types";
@@ -12,44 +12,10 @@ export function useVoice() {
   const [error, setError] = useState("");
   const [transcript, setTranscript] = useState("");
   const recognitionRef = useRef<any>(null);
+  const gotResultRef = useRef(false); // tracks if we already got a result
 
   const speechSupported = typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
-
-  const start = useCallback(() => {
-    if (!speechSupported) {
-      setState("text_input");
-      return;
-    }
-    try {
-      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      const recognition = new SR();
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.maxAlternatives = 1;
-      recognitionRef.current = recognition;
-
-      recognition.onstart = () => setState("recording");
-      recognition.onresult = (event: any) => {
-        const text = event.results[0][0].transcript;
-        setTranscript(text);
-        processText(text);
-      };
-      recognition.onerror = (event: any) => {
-        if (event.error === "not-allowed") {
-          setError("Microphone permission denied.");
-        } else {
-          setState("text_input");
-        }
-      };
-      recognition.onend = () => {
-        if (state === "recording") setState("text_input");
-      };
-      recognition.start();
-    } catch (e) {
-      setState("text_input");
-    }
-  }, [speechSupported, state]);
 
   const processText = async (text: string) => {
     setState("processing");
@@ -68,13 +34,64 @@ export function useVoice() {
     }
   };
 
+  const start = () => {
+    if (!speechSupported) {
+      setState("text_input");
+      return;
+    }
+    try {
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SR();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognitionRef.current = recognition;
+      gotResultRef.current = false;
+
+      recognition.onstart = () => setState("recording");
+
+      recognition.onresult = (event: any) => {
+        gotResultRef.current = true;
+        const text = event.results[0][0].transcript;
+        setTranscript(text);
+        processText(text);
+      };
+
+      recognition.onerror = (event: any) => {
+        if (gotResultRef.current) return; // already handled
+        if (event.error === "not-allowed") {
+          setError("Microphone permission denied.");
+          setState("error");
+        } else {
+          setState("text_input");
+        }
+      };
+
+      recognition.onend = () => {
+        // Only fall back to text input if we never got a result
+        if (!gotResultRef.current) {
+          setState("text_input");
+        }
+      };
+
+      recognition.start();
+    } catch (e) {
+      setState("text_input");
+    }
+  };
+
   const confirm = async () => {
     if (!intent) return;
     setState("processing");
     try {
       await executeIntent(intent);
       setState("success");
-      setTimeout(() => { setState("idle"); setIntent(null); setTranscript(""); }, 1500);
+      setTimeout(() => {
+        setState("idle");
+        setIntent(null);
+        setTranscript("");
+        gotResultRef.current = false;
+      }, 1500);
     } catch (e: any) {
       setError(e.message);
       setState("error");
@@ -83,6 +100,7 @@ export function useVoice() {
 
   const cancel = () => {
     recognitionRef.current?.abort();
+    gotResultRef.current = false;
     setState("idle");
     setIntent(null);
     setTranscript("");
@@ -90,6 +108,7 @@ export function useVoice() {
   };
 
   const submitText = (text: string) => {
+    gotResultRef.current = true;
     setTranscript(text);
     processText(text);
   };
