@@ -1,94 +1,179 @@
 "use client";
-import { useEffect } from "react";
+import { useState } from "react";
 import { useLifeStore } from "@/store/useLifeStore";
 import { useVoice } from "@/hooks/useVoice";
 
 export default function VoiceOverlay() {
-  const { isVoiceOpen, setVoiceOpen, refreshMomentum, refreshNutrition } = useLifeStore();
-  const { state, transcript, intent, error, start, confirm, cancel } = useVoice();
-
-  useEffect(() => {
-    if (isVoiceOpen && state === "idle") start();
-  }, [isVoiceOpen]);
-
-  useEffect(() => {
-    if (state === "success") {
-      refreshMomentum();
-      refreshNutrition();
-      setTimeout(() => setVoiceOpen(false), 1200);
-    }
-  }, [state]);
+  const { isVoiceOpen, setVoiceOpen } = useLifeStore();
+  const { state, intent, error, speechSupported, start, stop, confirm, cancel, submitText } = useVoice();
+  const [textInput, setTextInput] = useState("");
 
   if (!isVoiceOpen) return null;
 
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.92)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-      <div style={{ width: "100%", maxWidth: "360px", display: "flex", flexDirection: "column", gap: "24px" }}>
+  const handleOpen = () => {
+    if (state === "idle") start();
+  };
 
-        {state === "recording" && (
+  if (state === "idle") {
+    handleOpen();
+  }
+
+  const close = () => { cancel(); setVoiceOpen(false); setTextInput(""); };
+
+  const handleSubmitText = () => {
+    if (!textInput.trim()) return;
+    submitText(textInput.trim());
+    setTextInput("");
+  };
+
+  const overlayStyle = {
+    position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.95)",
+    zIndex: 100, display: "flex", flexDirection: "column" as const,
+    alignItems: "center", justifyContent: "center", padding: "32px",
+  };
+
+  const exampleCommands = [
+    "drank 500ml of water",
+    "slept 7.5 hours quality 4",
+    "walked 8000 steps",
+    "ate 2 eggs, 180 calories, 12g protein",
+    "add task buy groceries priority 1",
+    "logged a push workout 45 minutes RPE 7",
+  ];
+
+  // Text input mode (iOS Safari PWA or speech failed)
+  if (state === "text_input" || (!speechSupported && state === "idle")) {
+    return (
+      <div style={overlayStyle}>
+        <div style={{ width: "100%", maxWidth: "400px", display: "flex", flexDirection: "column", gap: "24px" }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "#ef4444", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="2" width="6" height="12" rx="3" />
-                <path d="M5 10a7 7 0 0 0 14 0" />
-                <line x1="12" y1="19" x2="12" y2="22" />
-              </svg>
-            </div>
-            <p style={{ color: "white", fontWeight: 700, fontSize: "18px" }}>Listening...</p>
-            <p style={{ color: "#52525b", fontSize: "12px", marginTop: "8px", letterSpacing: "0.1em", textTransform: "uppercase" }}>Speak now</p>
+            <p style={{ fontSize: "28px", marginBottom: "8px" }}>⌨️</p>
+            <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "8px" }}>Log Entry</p>
+            <p style={{ color: "#71717a", fontSize: "13px" }}>Type what you want to log</p>
           </div>
-        )}
 
-        {state === "processing" && (
-          <div style={{ textAlign: "center" }}>
-            <p style={{ color: "white", fontWeight: 700, fontSize: "18px" }}>Processing...</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <textarea
+              autoFocus
+              value={textInput}
+              onChange={e => setTextInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmitText(); } }}
+              placeholder="e.g. drank 500ml of water"
+              rows={2}
+              style={{ width: "100%", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "16px", color: "white", fontSize: "15px", outline: "none", resize: "none", boxSizing: "border-box" as const }}
+            />
+            <button onClick={handleSubmitText} disabled={!textInput.trim()}
+              style={{ width: "100%", padding: "16px", borderRadius: "16px", background: textInput.trim() ? "white" : "#27272a", color: textInput.trim() ? "black" : "#52525b", fontWeight: 700, fontSize: "13px", border: "none", cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
+              Log It
+            </button>
           </div>
-        )}
 
-        {state === "confirming" && intent && (
-          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
-            <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Confirm</p>
-            <p style={{ color: "white", fontSize: "16px", fontWeight: 600 }}>"{transcript}"</p>
-            <div style={{ background: "#27272a", borderRadius: "16px", padding: "16px" }}>
-              <p style={{ fontSize: "9px", color: "#52525b", letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: "8px" }}>Parsed as</p>
-              <p style={{ color: "#34d399", fontSize: "12px", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" }}>{intent.domain.replace("_", " ")}</p>
-              {Object.entries(intent.data).map(([k, v]) => (
-                <p key={k} style={{ color: "#a1a1aa", fontSize: "12px", marginTop: "4px" }}>{k}: <span style={{ color: "white" }}>{String(v)}</span></p>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: "12px" }}>
-              <button onClick={cancel} style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "none", border: "1px solid #27272a", color: "#71717a", fontWeight: 600, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>Cancel</button>
-              <button onClick={confirm} style={{ flex: 2, padding: "14px", borderRadius: "14px", background: "white", color: "black", fontWeight: 700, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>Save</button>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#3f3f46", textTransform: "uppercase", marginBottom: "4px" }}>Examples</p>
+            {exampleCommands.map((cmd, i) => (
+              <button key={i} onClick={() => setTextInput(cmd)}
+                style={{ textAlign: "left", background: "#18181b", border: "1px solid #27272a", borderRadius: "10px", padding: "8px 12px", color: "#71717a", fontSize: "11px", cursor: "pointer" }}>
+                {cmd}
+              </button>
+            ))}
           </div>
-        )}
 
-        {state === "success" && (
-          <div style={{ textAlign: "center" }}>
-            <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "#059669", margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </div>
-            <p style={{ color: "white", fontWeight: 700, fontSize: "18px" }}>Saved!</p>
-          </div>
-        )}
-
-        {state === "error" && (
-          <div style={{ textAlign: "center" }}>
-            <p style={{ color: "#f87171", fontWeight: 700, fontSize: "18px" }}>Error</p>
-            <p style={{ color: "#52525b", fontSize: "13px", marginTop: "8px" }}>{error}</p>
-            <button onClick={cancel} style={{ marginTop: "16px", padding: "12px 24px", borderRadius: "14px", background: "#27272a", border: "none", color: "#a1a1aa", fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>Dismiss</button>
-          </div>
-        )}
-
-        {(state === "recording" || state === "confirming") && (
-          <button onClick={() => { cancel(); setVoiceOpen(false); }}
-            style={{ background: "none", border: "none", color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase", cursor: "pointer", textAlign: "center" }}>
+          <button onClick={close}
+            style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer", padding: "8px" }}>
             Cancel
           </button>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Recording state
+  if (state === "recording") {
+    return (
+      <div style={overlayStyle}>
+        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "24px", alignItems: "center" }}>
+          <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 20px rgba(239,68,68,0.15)" }}>
+            <span style={{ fontSize: "32px" }}>🎙️</span>
+          </div>
+          <p style={{ color: "white", fontSize: "18px", fontWeight: 600 }}>Listening...</p>
+          <button onClick={() => stop()} style={{ padding: "12px 28px", borderRadius: "12px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
+            Done
+          </button>
+          <button onClick={close} style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", cursor: "pointer" }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  // Processing state
+  if (state === "processing") {
+    return (
+      <div style={overlayStyle}>
+        <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Processing...</p>
+      </div>
+    );
+  }
+
+  // Confirming state
+  if (state === "confirming" && intent) {
+    return (
+      <div style={overlayStyle}>
+        <div style={{ width: "100%", maxWidth: "360px", display: "flex", flexDirection: "column", gap: "24px" }}>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "8px" }}>Confirm Log</p>
+            <p style={{ fontSize: "22px", fontWeight: 700, color: "white", textTransform: "capitalize" }}>{intent.domain.replace("_", " ")}</p>
+          </div>
+          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "20px", padding: "20px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            {Object.entries(intent.data).map(([k, v]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between" }}>
+                <p style={{ fontSize: "11px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em" }}>{k}</p>
+                <p style={{ fontSize: "13px", color: "white", fontWeight: 600 }}>{String(v)}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button onClick={close} style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "none", border: "1px solid #27272a", color: "#71717a", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button onClick={confirm} style={{ flex: 2, padding: "14px", borderRadius: "14px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Success state
+  if (state === "success") {
+    return (
+      <div style={overlayStyle}>
+        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
+          <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: "28px" }}>✓</span>
+          </div>
+          <p style={{ color: "white", fontSize: "18px", fontWeight: 700 }}>Logged!</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (state === "error") {
+    return (
+      <div style={overlayStyle}>
+        <div style={{ width: "100%", maxWidth: "360px", display: "flex", flexDirection: "column", gap: "16px", alignItems: "center", textAlign: "center" }}>
+          <p style={{ fontSize: "28px" }}>❌</p>
+          <p style={{ color: "#f87171", fontSize: "14px" }}>{error || "Something went wrong"}</p>
+          <button onClick={() => { cancel(); setVoiceOpen(true); start(); }}
+            style={{ padding: "12px 24px", borderRadius: "12px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+            Try Again
+          </button>
+          <button onClick={close} style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", cursor: "pointer" }}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }

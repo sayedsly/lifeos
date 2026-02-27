@@ -4,45 +4,71 @@ import { parseIntent } from "@/lib/voice/parser";
 import { executeIntent } from "@/lib/voice/router";
 import type { ParsedIntent } from "@/types";
 
-export type VoiceState = "idle" | "recording" | "processing" | "confirming" | "success" | "error";
-
-let activeRecognition: any = null;
+export type VoiceState = "idle" | "recording" | "processing" | "confirming" | "success" | "error" | "text_input";
 
 export function useVoice() {
   const [state, setState] = useState<VoiceState>("idle");
-  const [transcript, setTranscript] = useState("");
   const [intent, setIntent] = useState<ParsedIntent | null>(null);
   const [error, setError] = useState("");
+  const [transcript, setTranscript] = useState("");
+  const recognitionRef = useRef<any>(null);
+
+  const speechSupported = typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
   const start = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) { setError("Speech not supported in this browser."); setState("error"); return; }
+    if (!speechSupported) {
+      setState("text_input");
+      return;
+    }
+    try {
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      const recognition = new SR();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+      recognitionRef.current = recognition;
 
-    if (activeRecognition) { activeRecognition.stop(); activeRecognition = null; }
+      recognition.onstart = () => setState("recording");
+      recognition.onresult = (event: any) => {
+        const text = event.results[0][0].transcript;
+        setTranscript(text);
+        processText(text);
+      };
+      recognition.onerror = (event: any) => {
+        if (event.error === "not-allowed") {
+          setError("Microphone permission denied.");
+        } else {
+          setState("text_input");
+        }
+      };
+      recognition.onend = () => {
+        if (state === "recording") setState("text_input");
+      };
+      recognition.start();
+    } catch (e) {
+      setState("text_input");
+    }
+  }, [speechSupported, state]);
 
-    const recognition = new SR();
-    activeRecognition = recognition;
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
-    recognition.onstart = () => setState("recording");
-    recognition.onresult = (e: any) => {
-      const text = e.results[0][0].transcript;
-      setTranscript(text);
-      setState("processing");
+  const processText = async (text: string) => {
+    setState("processing");
+    try {
       const parsed = parseIntent(text);
+      if (!parsed) {
+        setError(`Couldn't understand: "${text}"`);
+        setState("error");
+        return;
+      }
       setIntent(parsed);
-      if (parsed.domain === "unknown") { setState("error"); setError("Couldn't understand that."); }
-      else setState("confirming");
-    };
-    recognition.onerror = (e: any) => { setError(e.error); setState("error"); };
-    recognition.onend = () => { activeRecognition = null; };
-    recognition.start();
-  }, []);
+      setState("confirming");
+    } catch (e: any) {
+      setError(e.message);
+      setState("error");
+    }
+  };
 
-  const confirm = useCallback(async () => {
+  const confirm = async () => {
     if (!intent) return;
     setState("processing");
     try {
@@ -50,15 +76,25 @@ export function useVoice() {
       setState("success");
       setTimeout(() => { setState("idle"); setIntent(null); setTranscript(""); }, 1500);
     } catch (e: any) {
-      setError(e.message || "Failed to save.");
+      setError(e.message);
       setState("error");
     }
-  }, [intent]);
+  };
 
-  const cancel = useCallback(() => {
-    if (activeRecognition) { activeRecognition.stop(); activeRecognition = null; }
-    setState("idle"); setIntent(null); setTranscript(""); setError("");
-  }, []);
+  const cancel = () => {
+    recognitionRef.current?.abort();
+    setState("idle");
+    setIntent(null);
+    setTranscript("");
+    setError("");
+  };
 
-  return { state, transcript, intent, error, start, confirm, cancel };
+  const submitText = (text: string) => {
+    setTranscript(text);
+    processText(text);
+  };
+
+  const stop = () => recognitionRef.current?.stop();
+
+  return { state, intent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText };
 }
