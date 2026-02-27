@@ -4,17 +4,28 @@ import ClientShell from "@/components/ClientShell";
 
 export const metadata: Metadata = {
   title: "LifeOS",
-  description: "Personal performance operating system",
+  description: "Your life, optimized.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LifeOS",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="bg-zinc-950 min-h-screen">
-        <main className="max-w-md mx-auto px-4 pt-8 pb-32">
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="LifeOS" />
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body style={{ background: "#09090b", color: "white", margin: 0, padding: 0 }}>
+        <ClientShell />
+        <main style={{ maxWidth: "448px", margin: "0 auto", padding: "0 16px 120px 16px" }}>
           {children}
         </main>
-        <ClientShell />
       </body>
     </html>
   );
