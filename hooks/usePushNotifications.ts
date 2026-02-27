@@ -2,6 +2,25 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 
+function base64ToUint8Array(base64String: string): Uint8Array {
+  // Manual base64 decoder — avoids atob quirks on Safari iOS
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const normalized = base64String.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '=='.slice(0, (4 - normalized.length % 4) % 4);
+  
+  const bytes: number[] = [];
+  for (let i = 0; i < padded.length; i += 4) {
+    const a = chars.indexOf(padded[i]);
+    const b = chars.indexOf(padded[i + 1]);
+    const c = chars.indexOf(padded[i + 2]);
+    const d = chars.indexOf(padded[i + 3]);
+    bytes.push((a << 2) | (b >> 4));
+    if (padded[i + 2] !== '=') bytes.push(((b & 15) << 4) | (c >> 2));
+    if (padded[i + 3] !== '=') bytes.push(((c & 3) << 6) | d);
+  }
+  return new Uint8Array(bytes);
+}
+
 export function usePushNotifications() {
   const [supported, setSupported] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -9,7 +28,9 @@ export function usePushNotifications() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const ok = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+    const ok = typeof window !== "undefined"
+      && "serviceWorker" in navigator
+      && "PushManager" in window;
     setSupported(ok);
     if (ok) checkSubscription();
   }, []);
@@ -28,7 +49,7 @@ export function usePushNotifications() {
     setError("");
     try {
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!vapidKey) throw new Error("VAPID public key missing");
+      if (!vapidKey) throw new Error("VAPID public key missing from environment");
 
       const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       await navigator.serviceWorker.ready;
@@ -36,16 +57,12 @@ export function usePushNotifications() {
       const existing = await reg.pushManager.getSubscription();
       if (existing) await existing.unsubscribe();
 
-      // Safari requires Uint8Array specifically
-      const key = vapidKey.replace(/-/g, "+").replace(/_/g, "/");
-      const padded = key.padEnd(key.length + (4 - key.length % 4) % 4, "=");
-      const raw = atob(padded);
-      const uint8 = new Uint8Array(raw.length);
-      for (let i = 0; i < raw.length; i++) uint8[i] = raw.charCodeAt(i);
+      const applicationServerKey = base64ToUint8Array(vapidKey);
+      console.log("Key length:", applicationServerKey.length, "First byte:", applicationServerKey[0]);
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: uint8,
+        applicationServerKey,
       });
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -90,7 +107,12 @@ export function usePushNotifications() {
       const res = await fetch("/api/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id, title: "LifeOS 💪", body: "Push notifications are working!", url: "/" }),
+        body: JSON.stringify({
+          userId: user.id,
+          title: "LifeOS 💪",
+          body: "Push notifications are working!",
+          url: "/",
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(JSON.stringify(json));
