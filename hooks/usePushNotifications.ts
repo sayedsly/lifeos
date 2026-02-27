@@ -2,12 +2,10 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase/client";
 
-function base64ToUint8Array(base64String: string): Uint8Array {
-  // Manual base64 decoder — avoids atob quirks on Safari iOS
+function base64ToUint8Array(base64String: string): ArrayBuffer {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
   const normalized = base64String.replace(/-/g, '+').replace(/_/g, '/');
   const padded = normalized + '=='.slice(0, (4 - normalized.length % 4) % 4);
-  
   const bytes: number[] = [];
   for (let i = 0; i < padded.length; i += 4) {
     const a = chars.indexOf(padded[i]);
@@ -18,7 +16,10 @@ function base64ToUint8Array(base64String: string): Uint8Array {
     if (padded[i + 2] !== '=') bytes.push(((b & 15) << 4) | (c >> 2));
     if (padded[i + 3] !== '=') bytes.push(((c & 3) << 6) | d);
   }
-  return new Uint8Array(bytes);
+  const buffer = new ArrayBuffer(bytes.length);
+  const view = new Uint8Array(buffer);
+  bytes.forEach((b, i) => { view[i] = b; });
+  return buffer;
 }
 
 export function usePushNotifications() {
@@ -58,7 +59,6 @@ export function usePushNotifications() {
       if (existing) await existing.unsubscribe();
 
       const applicationServerKey = base64ToUint8Array(vapidKey);
-      console.log("Key length:", applicationServerKey.length, "First byte:", applicationServerKey[0]);
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
