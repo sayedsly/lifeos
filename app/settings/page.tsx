@@ -10,9 +10,10 @@ import type { UserSettings } from "@/types";
 export default function SettingsPage() {
   const [s, setS] = useState<UserSettings | null>(null);
   const [saved, setSaved] = useState(false);
+  const [testStatus, setTestStatus] = useState("");
   const { signOut } = useAuthStore();
   const router = useRouter();
-  const { supported, subscribed, loading: pushLoading, subscribe, unsubscribe, sendTestNotification } = usePushNotifications();
+  const { supported, subscribed, loading: pushLoading, error: pushError, subscribe, unsubscribe, sendTestNotification } = usePushNotifications();
 
   useEffect(() => { getSettings().then(setS); }, []);
 
@@ -25,6 +26,17 @@ export default function SettingsPage() {
     await updateSettings(s);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleTest = async () => {
+    setTestStatus("Sending...");
+    try {
+      await sendTestNotification();
+      setTestStatus("Sent! Check your notifications.");
+      setTimeout(() => setTestStatus(""), 5000);
+    } catch (e: any) {
+      setTestStatus("Error: " + e.message);
+    }
   };
 
   if (!s) return <div style={{ padding: "32px", color: "#52525b", fontSize: "12px" }}>Loading...</div>;
@@ -72,23 +84,30 @@ export default function SettingsPage() {
         {field("Step Goal", s.stepGoal, v => update({ stepGoal: parseInt(v) }))}
       </>)}
 
-      {section("Notifications", 
+      {section("Notifications",
         supported ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <p style={{ color: "white", fontSize: "14px", fontWeight: 600 }}>Daily Reminders</p>
-                <p style={{ color: "#52525b", fontSize: "11px", marginTop: "2px" }}>{subscribed ? "Enabled — you'll get daily nudges" : "Get reminded to log your data"}</p>
+                <p style={{ color: "#52525b", fontSize: "11px", marginTop: "2px" }}>
+                  {subscribed ? "Enabled — you'll get daily nudges" : "Get reminded to log your data"}
+                </p>
               </div>
               <button onClick={subscribed ? unsubscribe : subscribe} disabled={pushLoading}
                 style={{ padding: "10px 18px", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, background: subscribed ? "#27272a" : "white", color: subscribed ? "#71717a" : "black" }}>
                 {pushLoading ? "..." : subscribed ? "Disable" : "Enable"}
               </button>
             </div>
+            {(pushError) && (
+              <p style={{ color: "#f87171", fontSize: "12px", background: "#27272a", padding: "12px 16px", borderRadius: "12px", wordBreak: "break-all" as const }}>
+                {pushError}
+              </p>
+            )}
             {subscribed && (
-              <button onClick={sendTestNotification}
-                style={{ width: "100%", padding: "12px", borderRadius: "12px", background: "none", border: "1px solid #27272a", color: "#71717a", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
-                Send Test Notification
+              <button onClick={handleTest}
+                style={{ width: "100%", padding: "12px", borderRadius: "12px", background: testStatus === "Sending..." ? "#27272a" : "none", border: "1px solid #27272a", color: testStatus.includes("Error") ? "#f87171" : testStatus.includes("Sent") ? "#34d399" : "#71717a", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer", transition: "all 300ms" }}>
+                {testStatus || "Send Test Notification"}
               </button>
             )}
           </div>
