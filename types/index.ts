@@ -115,6 +115,13 @@ export interface FinanceGoal {
   createdAt: number;
 }
 
+export interface RecurringTask {
+  id: string;
+  title: string;
+  priority: 1 | 2 | 3;
+  createdAt: number;
+}
+
 export interface Task {
   id: string;
   date: string;

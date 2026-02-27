@@ -4,6 +4,7 @@ import type {
   NutritionEntry, HydrationEntry, SleepEntry,
   Task, MomentumSnapshot, UserSettings, MacroTargets,
   WorkoutSession, FinanceGoal, FinanceTransaction, StepEntry
+  RecurringTask,
 } from "@/types";
 
 const uid = () => Math.random().toString(36).slice(2);
@@ -277,4 +278,32 @@ export async function getCurrentStreak(): Promise<number> {
     else break;
   }
   return streak;
+}
+
+// --- Recurring Tasks ---
+export async function getRecurringTasks(): Promise<RecurringTask[]> {
+  const userId = await getUserId();
+  const { data } = await supabase.from("recurring_tasks").select("*").eq("user_id", userId).order("created_at");
+  return (data || []).map(r => ({ id: r.id, title: r.title, priority: r.priority as 1|2|3, createdAt: r.created_at }));
+}
+
+export async function addRecurringTask(task: RecurringTask) {
+  const userId = await getUserId();
+  await supabase.from("recurring_tasks").insert({ id: task.id, user_id: userId, title: task.title, priority: task.priority, created_at: task.createdAt });
+}
+
+export async function deleteRecurringTask(id: string) {
+  await supabase.from("recurring_tasks").delete().eq("id", id);
+}
+
+export async function seedRecurringTasksForToday(date: string) {
+  const userId = await getUserId();
+  const recurring = await getRecurringTasks();
+  if (recurring.length === 0) return;
+  const { data: existing } = await supabase.from("tasks").select("title").eq("user_id", userId).eq("date", date);
+  const existingTitles = new Set((existing || []).map(t => t.title));
+  const toInsert = recurring
+    .filter(r => !existingTitles.has(r.title))
+    .map(r => ({ id: `${r.id}-${date}`, user_id: userId, title: r.title, priority: r.priority, completed: false, date, created_at: Date.now() }));
+  if (toInsert.length > 0) await supabase.from("tasks").insert(toInsert);
 }
