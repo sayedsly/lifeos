@@ -93,6 +93,21 @@ export default function VoiceOverlay() {
   const handleConfirmEdited = async () => {
     if (!intent) return;
     await confirm({ ...intent, data: editedIntent });
+    // Navigate to the relevant section after logging
+    const routes: Record<string, string> = {
+      nutrition_add: "/nutrition",
+      hydration_add: "/",
+      sleep_log: "/",
+      steps_update: "/",
+      task_create: "/tasks",
+      finance_goal_add: "/finance",
+      finance_expense: "/finance",
+    };
+    const route = routes[intent.domain] || "/";
+    setTimeout(() => {
+      setVoiceOpen(false);
+      window.location.href = route;
+    }, 1200);
   };
 
   const overlay = {
