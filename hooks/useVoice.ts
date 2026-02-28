@@ -12,7 +12,7 @@ export function useVoice() {
   const [error, setError] = useState("");
   const [transcript, setTranscript] = useState("");
   const recognitionRef = useRef<any>(null);
-  const gotResultRef = useRef(false); // tracks if we already got a result
+  const gotResultRef = useRef(false);
 
   const speechSupported = typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
@@ -35,10 +35,7 @@ export function useVoice() {
   };
 
   const start = () => {
-    if (!speechSupported) {
-      setState("text_input");
-      return;
-    }
+    if (!speechSupported) { setState("text_input"); return; }
     try {
       const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       const recognition = new SR();
@@ -49,42 +46,28 @@ export function useVoice() {
       gotResultRef.current = false;
 
       recognition.onstart = () => setState("recording");
-
       recognition.onresult = (event: any) => {
         gotResultRef.current = true;
         const text = event.results[0][0].transcript;
         setTranscript(text);
         processText(text);
       };
-
       recognition.onerror = (event: any) => {
-        if (gotResultRef.current) return; // already handled
-        if (event.error === "not-allowed") {
-          setError("Microphone permission denied.");
-          setState("error");
-        } else {
-          setState("text_input");
-        }
+        if (gotResultRef.current) return;
+        if (event.error === "not-allowed") { setError("Microphone permission denied."); setState("error"); }
+        else setState("text_input");
       };
-
-      recognition.onend = () => {
-        // Only fall back to text input if we never got a result
-        if (!gotResultRef.current) {
-          setState("text_input");
-        }
-      };
-
+      recognition.onend = () => { if (!gotResultRef.current) setState("text_input"); };
       recognition.start();
-    } catch (e) {
-      setState("text_input");
-    }
+    } catch (e) { setState("text_input"); }
   };
 
-  const confirm = async () => {
-    if (!intent) return;
+  const confirm = async (overrideIntent?: ParsedIntent) => {
+    const target = overrideIntent || intent;
+    if (!target) return;
     setState("processing");
     try {
-      await executeIntent(intent);
+      await executeIntent(target);
       setState("success");
       setTimeout(() => {
         setState("idle");
@@ -115,5 +98,5 @@ export function useVoice() {
 
   const stop = () => recognitionRef.current?.stop();
 
-  return { state, intent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText };
+  return { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText };
 }

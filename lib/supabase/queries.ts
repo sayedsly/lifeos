@@ -363,3 +363,15 @@ export async function getHealthSyncLog() {
     .order("synced_at", { ascending: false }).limit(10);
   return data || [];
 }
+
+// --- Voice Examples ---
+export async function getVoiceExamples(): Promise<string[]> {
+  const userId = await getUserId();
+  const { data } = await supabase.from("user_settings").select("voice_examples").eq("user_id", userId).single();
+  return data?.voice_examples || [];
+}
+
+export async function saveVoiceExamples(examples: string[]) {
+  const userId = await getUserId();
+  await supabase.from("user_settings").update({ voice_examples: examples }).eq("user_id", userId);
+}
