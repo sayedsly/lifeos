@@ -30,10 +30,10 @@ export default function VoiceOverlay() {
     if (isVoiceOpen && !hasStarted.current) {
       hasStarted.current = true;
       setMode("listening");
-      if (speechSupported) {
+      // Small timeout still needed for component to mount
+      setTimeout(() => {
         start();
-      }
-      // On iOS, stay in listening mode UI so user sees the screen, not text box
+      }, 50);
     }
     if (!isVoiceOpen) hasStarted.current = false;
   }, [isVoiceOpen]);
