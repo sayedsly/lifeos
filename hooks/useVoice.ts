@@ -57,7 +57,11 @@ export function useVoice() {
         if (event.error === "not-allowed") { setError("Microphone permission denied."); setState("error"); }
         else setState("text_input");
       };
-      recognition.onend = () => { if (!gotResultRef.current) setState("text_input"); };
+      recognition.onend = () => {
+        // Don't auto-fallback to text_input - let user decide
+        // iOS fires onend quickly; we stay in idle so listening UI stays visible
+        if (!gotResultRef.current) setState("idle");
+      };
       recognition.start();
     } catch (e) { setState("text_input"); }
   };
