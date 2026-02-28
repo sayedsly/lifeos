@@ -38,7 +38,6 @@ export default function HomePage() {
   const [streak, setStreak] = useState(0);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
   const [settings, setSettings] = useState<any>(null);
 
   const loadAll = async () => {
