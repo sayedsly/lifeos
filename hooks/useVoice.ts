@@ -21,17 +21,10 @@ export function useVoice() {
     setState("processing");
     try {
       const parsed = parseIntent(text);
-      if (!parsed) {
-        setError(`Couldn't understand: "${text}"`);
-        setState("error");
-        return;
-      }
+      if (!parsed) { setError(`Couldn't understand: "${text}"`); setState("error"); return; }
       setIntent(parsed);
       setState("confirming");
-    } catch (e: any) {
-      setError(e.message);
-      setState("error");
-    }
+    } catch (e: any) { setError(e.message); setState("error"); }
   };
 
   const start = () => {
@@ -53,15 +46,11 @@ export function useVoice() {
         processText(text);
       };
       recognition.onerror = (event: any) => {
-        console.log("[Voice] onerror:", event.error);
         if (gotResultRef.current) return;
         if (event.error === "not-allowed") { setError("Microphone permission denied."); setState("error"); }
-        else { setError("Voice error: " + event.error); setState("error"); };
+        else setState("text_input");
       };
-      recognition.onend = () => {
-        console.log("[Voice] onend, gotResult:", gotResultRef.current);
-        if (!gotResultRef.current) setState("idle");
-      };
+      recognition.onend = () => { if (!gotResultRef.current) setState("text_input"); };
       recognition.start();
     } catch (e) { setState("text_input"); }
   };
@@ -73,33 +62,17 @@ export function useVoice() {
     try {
       await executeIntent(target);
       setState("success");
-      setTimeout(() => {
-        setState("idle");
-        setIntent(null);
-        setTranscript("");
-        gotResultRef.current = false;
-      }, 1500);
-    } catch (e: any) {
-      setError(e.message);
-      setState("error");
-    }
+      setTimeout(() => { setState("idle"); setIntent(null); setTranscript(""); gotResultRef.current = false; }, 1500);
+    } catch (e: any) { setError(e.message); setState("error"); }
   };
 
   const cancel = () => {
     recognitionRef.current?.abort();
     gotResultRef.current = false;
-    setState("idle");
-    setIntent(null);
-    setTranscript("");
-    setError("");
+    setState("idle"); setIntent(null); setTranscript(""); setError("");
   };
 
-  const submitText = (text: string) => {
-    gotResultRef.current = true;
-    setTranscript(text);
-    processText(text);
-  };
-
+  const submitText = (text: string) => { gotResultRef.current = true; setTranscript(text); processText(text); };
   const stop = () => recognitionRef.current?.stop();
 
   return { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText };
