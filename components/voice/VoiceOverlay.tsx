@@ -209,17 +209,14 @@ export default function VoiceOverlay() {
             <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Quick Log</p>
             <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "2px" }}>What did you do?</p>
           </div>
-          {speechSupported && (
-            <button onClick={start}
-              style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#ef4444", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
+          <button onClick={start}
+              style={{ width: "48px", height: "48px", borderRadius: "50%", background: speechSupported ? "#ef4444" : "#27272a", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
               🎙️
             </button>
-          )}
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <textarea
-            autoFocus
             value={textInput}
             onChange={e => setTextInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmitText(); } }}
@@ -246,7 +243,6 @@ export default function VoiceOverlay() {
           {showAddExample && (
             <div style={{ display: "flex", gap: "8px" }}>
               <input
-                autoFocus
                 placeholder="e.g. did 50 pushups"
                 value={newExample}
                 onChange={e => setNewExample(e.target.value)}
