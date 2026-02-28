@@ -118,6 +118,56 @@ export default function WorkoutHistory() {
             ))}
           </div>
 
+          {/* Exercise progress */}
+          {(() => {
+            const exerciseMap: Record<string, {date: string, weight: number, reps: number}[]> = {};
+            sessions.forEach(s => {
+              (s.exercises || []).forEach((ex: any) => {
+                if (!ex.name) return;
+                const sets = (ex.sets || []).filter((set: any) => set.completed && set.weight > 0);
+                if (sets.length === 0) return;
+                const maxWeight = Math.max(...sets.map((set: any) => parseFloat(set.weight) || 0));
+                const avgReps = Math.round(sets.reduce((a: number, set: any) => a + (parseInt(set.reps) || 0), 0) / sets.length);
+                if (!exerciseMap[ex.name]) exerciseMap[ex.name] = [];
+                exerciseMap[ex.name].push({ date: s.date, weight: maxWeight, reps: avgReps });
+              });
+            });
+            const tracked = Object.entries(exerciseMap).filter(([, entries]) => entries.length >= 2).slice(0, 4);
+            if (tracked.length === 0) return null;
+            return (
+              <div>
+                <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" as const, marginBottom: "10px" }}>Exercise Progress</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {tracked.map(([name, entries]) => {
+                    const first = entries[0].weight;
+                    const last = entries[entries.length - 1].weight;
+                    const diff = last - first;
+                    const maxW = Math.max(...entries.map(e => e.weight));
+                    return (
+                      <div key={name} style={{ background: "#27272a", borderRadius: "14px", padding: "12px 14px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                          <p style={{ color: "white", fontSize: "12px", fontWeight: 600 }}>{name}</p>
+                          <p style={{ fontSize: "11px", color: diff > 0 ? "#34d399" : diff < 0 ? "#f87171" : "#52525b", fontWeight: 700 }}>
+                            {diff > 0 ? "+" : ""}{diff !== 0 ? `${diff}lbs` : "→"} {diff > 0 ? "↑" : diff < 0 ? "↓" : ""}
+                          </p>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: "3px", height: "32px" }}>
+                          {entries.map((e, i) => (
+                            <div key={i} style={{ flex: 1, height: `${Math.max((e.weight / maxW) * 100, 15)}%`, borderRadius: "2px 2px 1px 1px", background: i === entries.length - 1 ? "#34d399" : "#3f3f46" }} />
+                          ))}
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+                          <p style={{ fontSize: "9px", color: "#52525b" }}>{first}lbs</p>
+                          <p style={{ fontSize: "9px", color: "white", fontWeight: 600 }}>{last}lbs now</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Type breakdown */}
           {typeEntries.length > 0 && (
             <div>

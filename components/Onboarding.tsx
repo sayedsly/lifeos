@@ -1,163 +1,138 @@
 "use client";
 import { useState } from "react";
-import { updateSettings, getSettings } from "@/lib/supabase/queries";
+import { getSettings, updateSettings } from "@/lib/supabase/queries";
 
-interface Props {
-  onComplete: () => void;
-}
+const STEPS = [
+  {
+    emoji: "👋",
+    title: "Welcome to LifeOS",
+    subtitle: "Your personal life optimization system. Let's get you set up in 3 quick steps.",
+    field: null,
+  },
+  {
+    emoji: "🎯",
+    title: "What's your daily calorie goal?",
+    subtitle: "This helps track your nutrition score. You can change it anytime in Settings.",
+    field: "calories",
+    placeholder: "e.g. 2000",
+    unit: "kcal",
+    default: "2000",
+  },
+  {
+    emoji: "💪",
+    title: "Daily protein target?",
+    subtitle: "Protein is key for muscle and recovery. Most people aim for 0.7–1g per lb of bodyweight.",
+    field: "protein",
+    placeholder: "e.g. 150",
+    unit: "grams",
+    default: "150",
+  },
+  {
+    emoji: "👟",
+    title: "Daily step goal?",
+    subtitle: "10,000 steps is a popular target, but even 7,500 has big health benefits.",
+    field: "steps",
+    placeholder: "e.g. 10000",
+    unit: "steps",
+    default: "10000",
+  },
+  {
+    emoji: "🚀",
+    title: "You're all set!",
+    subtitle: "Your Momentum Score tracks everything — nutrition, sleep, steps, workouts, tasks, and finance. Log something today to get started.",
+    field: null,
+  },
+];
 
-export default function Onboarding({ onComplete }: Props) {
-  const [step, setStep] = useState(1);
-  const [name, setName] = useState("");
-  const [calories, setCalories] = useState("2000");
-  const [protein, setProtein] = useState("150");
-  const [carbs, setCarbs] = useState("200");
-  const [fat, setFat] = useState("70");
-  const [hydration, setHydration] = useState("2500");
-  const [sleep, setSleep] = useState("8");
-  const [steps, setSteps] = useState("10000");
+export default function Onboarding({ onComplete }: { onComplete: () => void }) {
+  const [step, setStep] = useState(0);
+  const [values, setValues] = useState({ calories: "2000", protein: "150", steps: "10000" });
   const [saving, setSaving] = useState(false);
 
-  const finish = async () => {
-    setSaving(true);
-    try {
-      const current = await getSettings();
+  const current = STEPS[step];
+  const isLast = step === STEPS.length - 1;
+  const isFirst = step === 0;
+
+  const handleNext = async () => {
+    if (isLast) {
+      setSaving(true);
+      const settings = await getSettings();
       await updateSettings({
-        ...current,
-        name: name.trim() || "You",
+        ...settings,
         macroTargets: {
-          calories: parseFloat(calories),
-          protein: parseFloat(protein),
-          carbs: parseFloat(carbs),
-          fat: parseFloat(fat),
-          fiber: current.macroTargets.fiber,
+          ...settings.macroTargets,
+          calories: parseInt(values.calories) || 2000,
+          protein: parseInt(values.protein) || 150,
         },
-        hydrationGoal: parseInt(hydration),
-        sleepGoal: parseFloat(sleep),
-        stepGoal: parseInt(steps),
+        stepGoal: parseInt(values.steps) || 10000,
       });
-      onComplete();
-    } finally {
       setSaving(false);
+      onComplete();
+      return;
     }
+    setStep(s => s + 1);
   };
-
-  const overlay: React.CSSProperties = {
-    position: "fixed", inset: 0, background: "#09090b", zIndex: 200,
-    display: "flex", flexDirection: "column", alignItems: "center",
-    justifyContent: "center", padding: "32px",
-  };
-
-  const card: React.CSSProperties = {
-    width: "100%", maxWidth: "400px", display: "flex",
-    flexDirection: "column", gap: "24px",
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%", background: "#18181b", border: "1px solid #27272a",
-    borderRadius: "14px", padding: "14px 16px", color: "white",
-    fontSize: "16px", fontWeight: 600, outline: "none",
-    boxSizing: "border-box",
-  };
-
-  const label = (text: string) => (
-    <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "6px" }}>{text}</p>
-  );
-
-  const progressDots = (
-    <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
-      {[1, 2, 3].map(i => (
-        <div key={i} style={{ width: i === step ? "20px" : "6px", height: "6px", borderRadius: "999px", background: i === step ? "white" : "#27272a", transition: "all 300ms" }} />
-      ))}
-    </div>
-  );
-
-  const nextBtn = (onClick: () => void, label: string, disabled = false) => (
-    <button onClick={onClick} disabled={disabled} style={{
-      width: "100%", padding: "16px", borderRadius: "16px",
-      background: disabled ? "#27272a" : "white",
-      color: disabled ? "#52525b" : "black",
-      fontWeight: 700, fontSize: "13px", letterSpacing: "0.1em",
-      textTransform: "uppercase", border: "none", cursor: disabled ? "default" : "pointer",
-    }}>{label}</button>
-  );
 
   return (
-    <div style={overlay}>
-      <div style={card}>
-        {/* Header */}
-        <div>
-          <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.3em", color: "#52525b", textTransform: "uppercase", marginBottom: "8px" }}>LifeOS</p>
-          <p style={{ fontSize: "26px", fontWeight: 700, color: "white" }}>
-            {step === 1 ? "What's your name?" : step === 2 ? "Set your targets." : "Set your goals."}
-          </p>
-          <p style={{ fontSize: "13px", color: "#52525b", marginTop: "6px" }}>
-            {step === 1 ? "You can change this anytime in settings." : step === 2 ? "These drive your daily nutrition score." : "These set your activity benchmarks."}
-          </p>
+    <div style={{
+      position: "fixed", inset: 0, background: "#09090b", zIndex: 200,
+      display: "flex", flexDirection: "column", alignItems: "center",
+      justifyContent: "center", padding: "32px 24px",
+    }}>
+      <div style={{ width: "100%", maxWidth: "400px", display: "flex", flexDirection: "column", gap: "32px" }}>
+        {/* Progress dots */}
+        <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+          {STEPS.map((_, i) => (
+            <div key={i} style={{ width: i === step ? "24px" : "6px", height: "6px", borderRadius: "999px", background: i <= step ? "white" : "#27272a", transition: "all 300ms ease" }} />
+          ))}
         </div>
 
-        {/* Step 1 — Name */}
-        {step === 1 && (
-          <div>
-            {label("Display Name")}
-            <input
-              autoFocus
-              placeholder="e.g. Sayed"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && setStep(2)}
-              style={inputStyle}
-            />
-          </div>
-        )}
+        {/* Content */}
+        <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <p style={{ fontSize: "56px" }}>{current.emoji}</p>
+          <p style={{ fontSize: "22px", fontWeight: 700, color: "white", lineHeight: "1.3" }}>{current.title}</p>
+          <p style={{ fontSize: "14px", color: "#71717a", lineHeight: "1.6" }}>{current.subtitle}</p>
+        </div>
 
-        {/* Step 2 — Macros */}
-        {step === 2 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-              {[
-                { l: "Calories (kcal)", v: calories, s: setCalories },
-                { l: "Protein (g)", v: protein, s: setProtein },
-                { l: "Carbs (g)", v: carbs, s: setCarbs },
-                { l: "Fat (g)", v: fat, s: setFat },
-              ].map(({ l, v, s }) => (
-                <div key={l}>
-                  {label(l)}
-                  <input type="number" value={v} onChange={e => s(e.target.value)} style={inputStyle} />
-                </div>
-              ))}
+        {/* Input */}
+        {current.field && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <input
+                type="number"
+                value={values[current.field as keyof typeof values]}
+                onChange={e => setValues(v => ({ ...v, [current.field!]: e.target.value }))}
+                placeholder={current.placeholder}
+                style={{
+                  flex: 1, background: "#18181b", border: "1px solid #27272a", borderRadius: "16px",
+                  padding: "18px 20px", color: "white", fontSize: "20px", fontWeight: 700,
+                  outline: "none", textAlign: "center",
+                }}
+              />
+              <p style={{ color: "#52525b", fontSize: "13px", flexShrink: 0 }}>{current.unit}</p>
             </div>
           </div>
         )}
 
-        {/* Step 3 — Goals */}
-        {step === 3 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {[
-              { l: "Daily Water (ml)", v: hydration, s: setHydration },
-              { l: "Sleep Goal (hours)", v: sleep, s: setSleep },
-              { l: "Step Goal", v: steps, s: setSteps },
-            ].map(({ l, v, s }) => (
-              <div key={l}>
-                {label(l)}
-                <input type="number" value={v} onChange={e => s(e.target.value)} style={inputStyle} />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {progressDots}
-
-        {step < 3
-          ? nextBtn(() => setStep(step + 1), "Continue")
-          : nextBtn(finish, saving ? "Saving..." : "Let's Go 🚀", saving)
-        }
-
-        {step > 1 && (
-          <button onClick={() => setStep(step - 1)} style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", textAlign: "center" }}>
-            ← Back
+        {/* Buttons */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <button onClick={handleNext} disabled={saving}
+            style={{ width: "100%", padding: "18px", borderRadius: "18px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "15px", cursor: "pointer" }}>
+            {saving ? "Saving..." : isLast ? "Start Tracking →" : "Next →"}
           </button>
-        )}
+          {!isFirst && !isLast && (
+            <button onClick={() => setStep(s => s - 1)}
+              style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              ← Back
+            </button>
+          )}
+          {!isLast && (
+            <button onClick={onComplete}
+              style={{ background: "none", border: "none", color: "#3f3f46", fontSize: "11px", cursor: "pointer", letterSpacing: "0.08em" }}>
+              Skip for now
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
