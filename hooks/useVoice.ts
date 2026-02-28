@@ -53,13 +53,13 @@ export function useVoice() {
         processText(text);
       };
       recognition.onerror = (event: any) => {
+        console.log("[Voice] onerror:", event.error);
         if (gotResultRef.current) return;
         if (event.error === "not-allowed") { setError("Microphone permission denied."); setState("error"); }
-        else setState("text_input");
+        else { setError("Voice error: " + event.error); setState("error"); };
       };
       recognition.onend = () => {
-        // Don't auto-fallback to text_input - let user decide
-        // iOS fires onend quickly; we stay in idle so listening UI stays visible
+        console.log("[Voice] onend, gotResult:", gotResultRef.current);
         if (!gotResultRef.current) setState("idle");
       };
       recognition.start();
