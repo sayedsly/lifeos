@@ -30,7 +30,10 @@ export default function VoiceOverlay() {
     if (isVoiceOpen && !hasStarted.current) {
       hasStarted.current = true;
       setMode("listening");
-      start();
+      if (speechSupported) {
+        start();
+      }
+      // On iOS, stay in listening mode UI so user sees the screen, not text box
     }
     if (!isVoiceOpen) hasStarted.current = false;
   }, [isVoiceOpen]);
@@ -99,7 +102,7 @@ export default function VoiceOverlay() {
   };
 
   // ── LISTENING ──────────────────────────────────────────────
-  if (state === "recording") return (
+  if (state === "recording" || (mode === "listening" && state === "idle")) return (
     <div style={{ ...overlay, justifyContent: "center" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px" }}>
         {/* Pulsing mic */}
@@ -110,18 +113,20 @@ export default function VoiceOverlay() {
           </div>
         </div>
         <div style={{ textAlign: "center" }}>
-          <p style={{ color: "white", fontSize: "20px", fontWeight: 700 }}>Listening...</p>
-          <p style={{ color: "#52525b", fontSize: "13px", marginTop: "8px" }}>Say anything — "ate eggs", "walked a mile"</p>
+          <p style={{ color: "white", fontSize: "20px", fontWeight: 700 }}>{speechSupported ? "Listening..." : "Voice Not Available"}</p>
+          <p style={{ color: "#52525b", fontSize: "13px", marginTop: "8px" }}>
+            {speechSupported ? 'Say anything — "ate eggs", "walked a mile"' : "iOS Safari doesn't support voice — use Quick Add below"}
+          </p>
         </div>
         <div style={{ display: "flex", gap: "12px" }}>
           <button onClick={() => goToQuickAdd()}
             style={{ padding: "12px 20px", borderRadius: "12px", background: "#18181b", border: "1px solid #27272a", color: "#a1a1aa", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}>
             ⌨️ Quick Add
           </button>
-          <button onClick={() => stop()}
+          {speechSupported && <button onClick={() => stop()}
             style={{ padding: "12px 24px", borderRadius: "12px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
             Done
-          </button>
+          </button>}
           <button onClick={close}
             style={{ padding: "12px 20px", borderRadius: "12px", background: "#18181b", border: "1px solid #27272a", color: "#71717a", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}>
             Cancel
