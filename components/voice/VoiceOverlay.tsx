@@ -168,7 +168,7 @@ export default function VoiceOverlay() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              onClick={() => { setIntent({ ...intent, confidence: 1 }); }}
+            <button onClick={handleConfirmEdited}
               style={{ width: "100%", padding: "14px", borderRadius: "14px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
               ✓ Yeah that's right — Save
             </button>
