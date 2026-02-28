@@ -168,7 +168,6 @@ export default function VoiceOverlay() {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <button onClick={() => { setEditedIntent({ ...intent.data }); useVoice; }}
               onClick={() => { setIntent({ ...intent, confidence: 1 }); }}
               style={{ width: "100%", padding: "14px", borderRadius: "14px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
               ✓ Yeah that's right — Save
