@@ -18,7 +18,7 @@ export default function SettingsPage() {
   const [navConfig, setNavConfig] = useState(["nutrition", "tasks", "friends"]);
   const { signOut } = useAuthStore();
   const router = useRouter();
-  const { supported, subscribed, loading: pushLoading, error: pushError, subscribe, unsubscribe } = usePushNotifications();
+  const { supported, subscribed, loading: pushLoading, error: pushError, subscribe, unsubscribe, sendTestNotification } = usePushNotifications();
 
   useEffect(() => {
     getSettings().then(s => {
@@ -175,16 +175,25 @@ export default function SettingsPage() {
         {toggle("Sleep History Chart", homeWidgets.sleepChart, v => setHomeWidgets(p => ({ ...p, sleepChart: v })))}
       </>)}
 
-      {supported && section("Notifications",
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <p style={{ color: "white", fontSize: "14px", fontWeight: 600 }}>Daily Reminders</p>
-            <p style={{ color: "#52525b", fontSize: "11px", marginTop: "2px" }}>{subscribed ? "Enabled" : "Get reminded to log your data"}</p>
+      {supported && section("Notifications — iOS PWA only",
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <p style={{ color: "white", fontSize: "14px", fontWeight: 600 }}>Daily Reminders</p>
+              <p style={{ color: "#52525b", fontSize: "11px", marginTop: "2px" }}>{subscribed ? "Enabled" : "Get reminded to log your data"}</p>
+            </div>
+            <button onClick={subscribed ? unsubscribe : subscribe} disabled={pushLoading}
+              style={{ padding: "10px 18px", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, background: subscribed ? "#27272a" : "white", color: subscribed ? "#71717a" : "black" }}>
+              {pushLoading ? "..." : subscribed ? "Disable" : "Enable"}
+            </button>
           </div>
-          <button onClick={subscribed ? unsubscribe : subscribe} disabled={pushLoading}
-            style={{ padding: "10px 18px", borderRadius: "12px", border: "none", cursor: "pointer", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, background: subscribed ? "#27272a" : "white", color: subscribed ? "#71717a" : "black" }}>
-            {pushLoading ? "..." : subscribed ? "Disable" : "Enable"}
-          </button>
+          {subscribed && (
+            <button onClick={sendTestNotification}
+              style={{ width: "100%", padding: "12px", borderRadius: "12px", background: "#18181b", border: "1px solid #27272a", color: "white", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
+              🔔 Send Test Notification
+            </button>
+          )}
+          {pushError && <p style={{ color: "#f87171", fontSize: "11px" }}>{pushError}</p>}
         </div>
       )}
 
