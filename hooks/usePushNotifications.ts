@@ -55,7 +55,7 @@ export function usePushNotifications() {
 
       // CRITICAL: Safari requires Uint8Array not ArrayBuffer
       const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
-      const applicationServerKey = urlBase64ToUint8Array(vapidKey);
+      const applicationServerKey = urlBase64ToUint8Array(vapidKey) as unknown as BufferSource;
 
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
