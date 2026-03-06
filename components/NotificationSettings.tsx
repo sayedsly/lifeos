@@ -91,7 +91,7 @@ export default function NotificationSettings({ subscribed }: { subscribed: boole
             {/* Header row */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 16px" }}>
               <span style={{ fontSize: "20px" }}>{d.emoji}</span>
-              <div style={{ flex: 1 }} onClick={() => { if(pref.enabled) setExpanded(isExpanded ? null : d.key); }} style={{ cursor: pref.enabled ? "pointer" : "default" }}>
+              <div style={{ flex: 1 }} onClick={() => { if(pref.enabled) setExpanded(isExpanded ? null : d.key); }}>
                 <p style={{ fontSize: "13px", fontWeight: 700, color: "#374151" }}>{d.label}</p>
                 <p style={{ fontSize: "10px", color: "#9ca3af", fontWeight: 600 }}>
                   {pref.enabled ? pref.times.join(", ") : d.desc}
