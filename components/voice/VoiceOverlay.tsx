@@ -60,8 +60,6 @@ export default function VoiceOverlay() {
   const [agentDone, setAgentDone] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [chatHistory, setChatHistory] = useState<{role:"user"|"ai";text:string}[]>([]);
-  const [followUpText, setFollowUpText] = useState("");
-  const [isFollowUp, setIsFollowUp] = useState(false);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<{name:string;lang:string}[]>([]);
   const hasStarted = useRef(false);
@@ -143,9 +141,6 @@ export default function VoiceOverlay() {
     setTimeout(() => start(), 150);
   };
 
-  const handleAgentFollowUp = () => {
-    setIsFollowUp(true); // just show the follow-up screen, nothing else
-  };
 
   const handleAddExample = async () => {
     if (!newExample.trim()) return;
@@ -177,42 +172,6 @@ export default function VoiceOverlay() {
   const meta = intent ? (DOMAIN_META[intent.domain] || { emoji: "📝", color: "#374151", bg: "#f3f4f6" }) : null;
 
   // ── AGENT RESPONSE ──
-  // Follow-up listening state - keep overlay open
-  if (isFollowUp) {
-    return (
-      <div style={sheet} >
-        <div style={card} onClick={e => e.stopPropagation()}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <p style={{ fontSize: "11px", fontWeight: 800, color: "#9ca3af", letterSpacing: "0.2em" }}>
-              {state === "processing" ? "THINKING..." : "FOLLOW-UP..."}
-            </p>
-            <button onClick={() => { setIsFollowUp(false); close(); }} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#9ca3af" }}>✕</button>
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "22px", position: "relative", height: 100 }}>
-            {state === "recording" && [90, 68, 48].map((size, i) => (
-              <div key={i} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: size, height: size, borderRadius: "50%", background: `rgba(99,102,241,${0.08 - i * 0.02})`, animation: `pulse ${1.2 + i * 0.2}s ease-in-out infinite` }} />
-            ))}
-            <div onClick={() => { setAgentResult(null); resetForFollowUp(); setMode("listening"); start(); }}
-              style={{ width: 64, height: 64, borderRadius: "50%", background: state === "processing" ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "linear-gradient(135deg,#667eea,#764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", zIndex: 1, cursor: "pointer", position: "relative" }}>
-              {state === "processing" ? "✨" : state === "recording" ? "⏹️" : "🎙️"}
-            </div>
-          </div>
-          <p style={{ textAlign: "center", fontSize: "13px", color: "#6b7280", fontWeight: 600 }}>
-            {state === "processing" ? "Getting your answer..." : state === "recording" ? "Listening... tap to stop" : "Tap mic to follow up"}
-          </p>
-          {state === "recording" && (
-            <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
-              <input value={followUpText} onChange={e => setFollowUpText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); stop(); submitText(t); } }}
-                placeholder="Or type your follow-up..."
-                style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "10px 14px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   if (state === "confirming" && agentResult) {
     const hasAction = agentResult.action && agentResult.action.type !== "none";
     return (

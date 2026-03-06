@@ -161,7 +161,11 @@ Rules:
 - When user wants to split money across existing goals, return ACTION finance_split
 - When user wants to CREATE a new finance goal, return ACTION finance_goal_add with: {"goals":[{"name":"Emergency Fund","targetAmount":5000,"category":"savings"}]}
 - When user mentions their weight, return ACTION body_weight with: {"weight":165,"unit":"lbs"}
-- NEVER leave a response mid-sentence. Always complete your thought.
+- NEVER ask the user for more information or clarification. Instead:
+- If you need more info, end with: "Try again with: [exact example of what to say]"
+- If the request is ambiguous, make your best guess and state your assumption
+- Always give a complete, actionable response
+- NEVER leave a sentence unfinished
 - Keep responses under 200 words, warm, specific to their actual data numbers.`;
 
     // Load AI memory for this user
