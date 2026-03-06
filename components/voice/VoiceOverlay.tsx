@@ -32,6 +32,7 @@ const sheet: React.CSSProperties = {
   backdropFilter: "blur(16px)",
   WebkitBackdropFilter: "blur(16px)" as any,
   display: "flex", alignItems: "flex-end", justifyContent: "center",
+  paddingBottom: "120px",
 };
 
 const card: React.CSSProperties = {
@@ -143,9 +144,8 @@ export default function VoiceOverlay() {
 
   const handleAgentFollowUp = () => {
     setAgentResult(null);
-    cancel();
     setMode("listening");
-    setTimeout(() => start(), 150);
+    setTimeout(() => start(), 50);
   };
 
   const handleAddExample = async () => {
@@ -214,10 +214,16 @@ export default function VoiceOverlay() {
             <div style={{ background: "linear-gradient(135deg,#e0e7ff,#ede9fe)", borderRadius: "14px", padding: "12px 14px", marginBottom: "14px" }}>
               <p style={{ fontSize: "10px", fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>Proposed Action</p>
               <p style={{ fontSize: "12px", fontWeight: 700, color: "#3730a3" }}>
-                {agentResult.action.type === "nutrition_log" && `Log: ${agentResult.action.data?.food} (${agentResult.action.data?.calories} cal)`}
-                {agentResult.action.type === "macro_targets" && `Update macros: ${agentResult.action.data?.calories} kcal, ${agentResult.action.data?.protein}g protein`}
-                {agentResult.action.type === "finance_split" && `Split money across ${agentResult.action.data?.splits?.length} goals`}
-                {agentResult.action.type === "workout_plan" && `Save workout: ${agentResult.action.data?.name} (${agentResult.action.data?.exercises?.length} exercises)`}
+                {agentResult.action.type === "nutrition_log" && `🍽️ Log: ${agentResult.action.data?.food} (${agentResult.action.data?.calories} cal)`}
+                {agentResult.action.type === "macro_targets" && `🎯 Update macros: ${agentResult.action.data?.calories} kcal, P:${agentResult.action.data?.protein}g C:${agentResult.action.data?.carbs}g F:${agentResult.action.data?.fat}g`}
+                {agentResult.action.type === "finance_split" && `💰 Split across ${agentResult.action.data?.splits?.length || "?"} goals`}
+                {agentResult.action.type === "finance_goal_add" && `💰 Create goal: ${(agentResult.action.data?.goals || [agentResult.action.data]).map((g:any) => g.name).join(", ")}`}
+                {agentResult.action.type === "workout_plan" && `💪 Save workout: ${agentResult.action.data?.name} (${agentResult.action.data?.exercises?.length || "?"} exercises)`}
+                {agentResult.action.type === "task_add" && `✅ Add ${Array.isArray(agentResult.action.data?.tasks) ? agentResult.action.data.tasks.length + " tasks" : '"' + (agentResult.action.data?.title || agentResult.action.data) + '"'}`}
+                {agentResult.action.type === "hydration_log" && `💧 Log ${agentResult.action.data?.amount}ml water`}
+                {agentResult.action.type === "sleep_log" && `😴 Log sleep: ${agentResult.action.data?.duration}h`}
+                {agentResult.action.type === "body_weight" && `⚖️ Log weight: ${agentResult.action.data?.weight}${agentResult.action.data?.unit || "lbs"}`}
+                {!["nutrition_log","macro_targets","finance_split","finance_goal_add","workout_plan","task_add","hydration_log","sleep_log","body_weight"].includes(agentResult.action.type) && `Action: ${agentResult.action.type}`}
               </p>
             </div>
           )}
@@ -277,10 +283,10 @@ export default function VoiceOverlay() {
           {!agentDone && (
             <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
               <input value={followUpText} onChange={e => setFollowUpText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); cancel(); submitText(t); } }}
+                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); submitText(t); } }}
                 placeholder="Ask a follow-up..."
                 style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
-              <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); cancel(); submitText(t); } else { handleAgentFollowUp(); } }}
+              <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); submitText(t); } else { handleAgentFollowUp(); } }}
                 style={{ width: 46, height: 46, borderRadius: "12px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontSize: "20px", cursor: "pointer", flexShrink: 0 }}>
                 {followUpText.trim() ? "→" : "🎙️"}
               </button>
