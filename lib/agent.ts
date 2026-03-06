@@ -25,8 +25,9 @@ export async function runAgent(message: string): Promise<AgentResult> {
 
   if (res.status === 429) throw new Error("RATE_LIMITED");
   const data = await res.json();
+  console.log("Agent response:", JSON.stringify(data).slice(0, 200));
   if (!res.ok || data.error) throw new Error(data.error || "Agent request failed");
-  if (!data.text) throw new Error("Empty response from AI");
+  if (!data.text) throw new Error("No text in response: " + JSON.stringify(data).slice(0, 100));
   return data;
 }
 
