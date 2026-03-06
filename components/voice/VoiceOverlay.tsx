@@ -28,7 +28,7 @@ const DOMAIN_META: Record<string, { emoji: string; color: string; bg: string }> 
 
 const sheet: React.CSSProperties = {
   position: "fixed", inset: 0, zIndex: 200,
-  background: "rgba(0,0,0,0.45)",
+  background: "rgba(0,0,0,0.55)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)" as any,
   display: "flex", alignItems: "flex-end", justifyContent: "center",
@@ -37,9 +37,10 @@ const sheet: React.CSSProperties = {
 const card: React.CSSProperties = {
   width: "100%", maxWidth: 448,
   background: "white",
-  borderRadius: "32px 32px 0 0",
-  padding: "24px 22px 36px",
-  boxShadow: "0 -8px 48px rgba(0,0,0,0.18)",
+  borderRadius: "28px 28px 0 0",
+  padding: "28px 22px 48px",
+  boxShadow: "0 -8px 48px rgba(0,0,0,0.22)",
+  minHeight: "320px",
 };
 
 export default function VoiceOverlay() {
@@ -222,8 +223,8 @@ export default function VoiceOverlay() {
 
   // ── LISTENING ──
   if (state === "recording" || (mode === "listening" && state === "idle")) return (
-    <div style={sheet}>
-      <div style={card}>
+    <div style={sheet} onClick={close}>
+      <div style={card} onClick={e => e.stopPropagation()}>
         <p style={{ fontSize: "11px", fontWeight: 800, color: "#9ca3af", textAlign: "center", letterSpacing: "0.2em", marginBottom: "20px" }}>
           {speechSupported ? "LISTENING..." : "QUICK ADD"}
         </p>
@@ -287,8 +288,8 @@ export default function VoiceOverlay() {
 
   // ── LOW CONFIDENCE ──
   if (state === "confirming" && intent && intent.confidence < 0.8) return (
-    <div style={sheet}>
-      <div style={card}>
+    <div style={sheet} onClick={close}>
+      <div style={card} onClick={e => e.stopPropagation()}>
         <div style={{ textAlign: "center", marginBottom: "18px" }}>
           <span style={{ fontSize: "36px" }}>🤔</span>
           <p style={{ fontSize: "17px", fontWeight: 800, color: "#111118", marginTop: "8px" }}>I think I got it...</p>
@@ -409,8 +410,8 @@ export default function VoiceOverlay() {
 
   // ── RATE LIMITED ──
   if (state === "error" && error === "RATE_LIMITED") return (
-    <div style={sheet}>
-      <div style={card}>
+    <div style={sheet} onClick={close}>
+      <div style={card} onClick={e => e.stopPropagation()}>
         <div style={{ textAlign: "center", padding: "16px 0" }}>
           <p style={{ fontSize: "48px", marginBottom: "12px" }}>😅</p>
           <p style={{ fontSize: "18px", fontWeight: 900, color: "#111118", marginBottom: "8px" }}>Cmon bro, chill</p>
@@ -431,8 +432,8 @@ export default function VoiceOverlay() {
 
   // ── ERROR ──
   if (state === "error") return (
-    <div style={sheet}>
-      <div style={card}>
+    <div style={sheet} onClick={close}>
+      <div style={card} onClick={e => e.stopPropagation()}>
         <div style={{ textAlign: "center", marginBottom: "18px" }}>
           <span style={{ fontSize: "36px" }}>🤷</span>
           <p style={{ fontSize: "17px", fontWeight: 800, color: "#111118", marginTop: "8px" }}>Didn't catch that</p>
@@ -455,8 +456,8 @@ export default function VoiceOverlay() {
 
   // ── QUICK ADD (text mode) ──
   return (
-    <div style={sheet}>
-      <div style={card}>
+    <div style={sheet} onClick={close}>
+      <div style={card} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
           <div>
             <p style={{ fontSize: "10px", fontWeight: 800, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.15em" }}>Quick Add</p>
