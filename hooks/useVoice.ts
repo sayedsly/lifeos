@@ -95,6 +95,7 @@ export function useVoice() {
   const cancel = () => {
     recognitionRef.current?.abort();
     gotResultRef.current = false;
+    if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
     setState("idle"); setIntent(null); setTranscript(""); setError(""); setAgentResult(null);
   };
 
