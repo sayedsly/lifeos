@@ -440,5 +440,5 @@ export async function getFinanceTransactions(): Promise<FinanceTransaction[]> {
 
 export async function addFinanceTransaction(tx: Omit<FinanceTransaction, "category" | "type"> & { goalId?: string }): Promise<void> {
   const userId = await getUserId();
-  await supabase.from("finance_transactions").insert({ id: tx.id, user_id: userId, date: tx.date, timestamp: tx.timestamp, amount: tx.amount, description: tx.description, category: "savings", type: "income", goal_id: tx.goalId ?? null });
+  await supabase.from("finance_transactions").insert({ id: tx.id, user_id: userId, date: tx.date, timestamp: tx.timestamp, amount: tx.amount, description: tx.description, category: (tx as any).category || "Other", type: (tx as any).type || "expense", goal_id: (tx as any).goalId ?? null });
 }
