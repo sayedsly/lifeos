@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useLifeStore } from "@/store/useLifeStore";
-import { executeAgentAction, speak, getAvailableVoices } from "@/lib/agent";
+import { executeAgentAction, speak, getAvailableVoices, appendAgentHistory } from "@/lib/agent";
 import { useVoice } from "@/hooks/useVoice";
 import { getVoiceExamples, saveVoiceExamples } from "@/lib/supabase/queries";
 
@@ -181,7 +181,7 @@ export default function VoiceOverlay() {
   if (state === "confirming" && agentResult) {
     const hasAction = agentResult.action && agentResult.action.type !== "none";
     return (
-      <div style={sheet}>
+      <div style={sheet} onClick={close}>
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
             <div style={{ width: 40, height: 40, borderRadius: "12px", background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>✨</div>

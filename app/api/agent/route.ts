@@ -158,7 +158,9 @@ Rules:
 - When user asks to add tasks, return ACTION task_add
 - When user logs water/hydration, return ACTION hydration_log  
 - When user says they slept X hours, return ACTION sleep_log
-- When user wants to split money, return ACTION finance_split
+- When user wants to split money across existing goals, return ACTION finance_split
+- When user wants to CREATE a new finance goal, return ACTION finance_goal_add with: {"goals":[{"name":"Emergency Fund","targetAmount":5000,"category":"savings"}]}
+- When user mentions their weight, return ACTION body_weight with: {"weight":165,"unit":"lbs"}
 - NEVER leave a response mid-sentence. Always complete your thought.
 - Keep responses under 200 words, warm, specific to their actual data numbers.`;
 

@@ -4,7 +4,7 @@ import { addNutritionEntry, getSettings, updateSettings } from "@/lib/supabase/q
 import { format } from "date-fns";
 
 export interface AgentAction {
-  type: "nutrition_log" | "workout_plan" | "finance_split" | "macro_targets" | "task_add" | "task_complete" | "hydration_log" | "sleep_log" | "none";
+  type: "nutrition_log" | "workout_plan" | "finance_split" | "finance_goal_add" | "macro_targets" | "task_add" | "task_complete" | "hydration_log" | "sleep_log" | "body_weight" | "none";
   data?: any;
 }
 
@@ -13,6 +13,11 @@ export interface AgentResult {
   action: AgentAction | null;
 }
 
+let _sessionHistory: {role:"user"|"ai";text:string}[] = [];
+export function setAgentHistory(h: {role:"user"|"ai";text:string}[]) { _sessionHistory = h; }
+export function appendAgentHistory(role: "user"|"ai", text: string) { _sessionHistory = [..._sessionHistory.slice(-9), {role, text}]; }
+export function getAgentHistory() { return _sessionHistory; }
+
 export async function runAgent(message: string, history: {role:"user"|"ai";text:string}[] = []): Promise<AgentResult> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("Not logged in");
@@ -20,7 +25,7 @@ export async function runAgent(message: string, history: {role:"user"|"ai";text:
   const res = await fetch("/api/agent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: session.user.id, accessToken: session.access_token, message, history }),
+    body: JSON.stringify({ userId: session.user.id, accessToken: session.access_token, message, history: history.length > 0 ? history : _sessionHistory }),
   });
 
   if (res.status === 429) throw new Error("RATE_LIMITED");
@@ -86,6 +91,39 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
       });
     }
     return "Finance split logged ✓";
+  }
+
+  if (action.type === "finance_goal_add" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    const goals = Array.isArray(action.data.goals) ? action.data.goals : [action.data];
+    for (const g of goals) {
+      await supabase.from("finance_goals").insert({
+        id: Math.random().toString(36).slice(2),
+        user_id: session.user.id,
+        name: g.name,
+        target_amount: g.targetAmount || g.target || 0,
+        current_amount: g.currentAmount || 0,
+        category: g.category || "savings",
+        color: g.color || "#6366f1",
+        created_at: Date.now(),
+      });
+    }
+    return goals.length > 1 ? `Added ${goals.length} finance goals ✓` : `Goal "${goals[0].name}" created ✓`;
+  }
+
+  if (action.type === "body_weight" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    await supabase.from("body_weight_entries").insert({
+      id: Math.random().toString(36).slice(2),
+      user_id: session.user.id,
+      date: today,
+      weight: action.data.weight,
+      unit: action.data.unit || "lbs",
+      timestamp: Date.now(),
+    });
+    return `Weight logged: ${action.data.weight}${action.data.unit || "lbs"} ✓`;
   }
 
   if (action.type === "task_add" && action.data) {
