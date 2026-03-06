@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useLifeStore } from "@/store/useLifeStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import MomentumCard from "@/components/momentum/MomentumCard";
+import ActivityRings from "@/components/momentum/ActivityRings";
 import HydrationCard from "@/components/momentum/HydrationCard";
 import SleepCard from "@/components/momentum/SleepCard";
 import StepsCard from "@/components/momentum/StepsCard";
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [settings, setSettings] = useState<any>(null);
   const [caloriesToday, setCaloriesToday] = useState(0);
+  const [ringsConfig, setRingsConfig] = useState<[string,string,string]>(["steps", "nutrition", "sleep"]);
 
   const loadAll = async () => {
     try {
@@ -66,6 +68,7 @@ export default function HomePage() {
       setTrend(trendData);
       setStreak(streakCount);
       setCaloriesToday((nutritionTotals as any)?.calories || 0);
+      if (s.ringsConfig && s.ringsConfig.length === 3) setRingsConfig(s.ringsConfig as [string,string,string]);
       if (!s.name || s.name === "You") setShowOnboarding(true);
       refreshMomentum();
       if (prevMomentum && momentum) setDelta(momentum.score - (prevMomentum as any).score);
@@ -141,7 +144,7 @@ export default function HomePage() {
         </div>
 
         {/* Momentum card - stays dark */}
-        <MomentumCard momentum={momentum} delta={delta} />
+        {momentum && <ActivityRings breakdown={momentum.breakdown as any} score={momentum.score} ringsConfig={ringsConfig} onConfigChange={setRingsConfig} />}
 
         {/* Stat cards grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>

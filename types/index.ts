@@ -164,6 +164,7 @@ export interface UserSettings {
   tokensUsed: number;
   tokensResetDate: string;
   homeWidgets?: { streak: boolean; trendGraph: boolean; hydrationChart: boolean; sleepChart: boolean };
+  ringsConfig?: [string, string, string];
   navConfig?: string[];
   recentFoods?: Record<string, any[]>;
 }
