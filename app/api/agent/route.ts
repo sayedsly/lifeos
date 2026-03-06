@@ -144,11 +144,23 @@ ACTION:{"type":"finance_split","data":{"splits":[{"goalName":"Emergency Fund","a
 or
 ACTION:{"type":"macro_targets","data":{"calories":2200,"protein":175,"carbs":220,"fat":70}}
 or
+ACTION:{"type":"task_add","data":{"tasks":[{"title":"Buy groceries","priority":2},{"title":"Call doctor","priority":1}]}}
+or
+ACTION:{"type":"hydration_log","data":{"amount":500}}
+or
+ACTION:{"type":"sleep_log","data":{"duration":7.5,"quality":3,"bedtime":"23:30","wakeTime":"07:00"}}
+or
 ACTION:{"type":"none"}
 
-For purely informational questions, just answer and end with ACTION:{"type":"none"}
-
-Keep responses concise (under 250 words), warm, specific to their data. Use their actual numbers. IMPORTANT: When user gives body measurements and goals (like height, weight, body fat goal), ALWAYS calculate and return macro targets using ACTION:{type:macro_targets}. Never leave a sentence unfinished.`;
+Rules:
+- For informational questions, answer and end with ACTION:{"type":"none"}
+- When user gives body stats (height/weight/goal), ALWAYS return ACTION macro_targets with calculated values
+- When user asks to add tasks, return ACTION task_add
+- When user logs water/hydration, return ACTION hydration_log  
+- When user says they slept X hours, return ACTION sleep_log
+- When user wants to split money, return ACTION finance_split
+- NEVER leave a response mid-sentence. Always complete your thought.
+- Keep responses under 200 words, warm, specific to their actual data numbers.`;
 
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,

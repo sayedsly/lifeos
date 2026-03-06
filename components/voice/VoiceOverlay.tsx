@@ -58,6 +58,7 @@ export default function VoiceOverlay() {
   const [rateLimited, setRateLimited] = useState(false);
   const [agentDone, setAgentDone] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [chatHistory, setChatHistory] = useState<{role:"user"|"ai";text:string}[]>([]);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<{name:string;lang:string}[]>([]);
   const hasStarted = useRef(false);
@@ -136,7 +137,14 @@ export default function VoiceOverlay() {
     setAgentResult(null);
     cancel();
     setMode("listening");
-    setTimeout(() => start(), 100);
+    setTimeout(() => start(), 150);
+  };
+
+  const handleAgentFollowUp = () => {
+    setAgentResult(null);
+    cancel();
+    setMode("listening");
+    setTimeout(() => start(), 150);
   };
 
   const handleAddExample = async () => {
@@ -186,6 +194,17 @@ export default function VoiceOverlay() {
             </button>
           </div>
 
+          {chatHistory.length > 2 && (
+            <div style={{ maxHeight: "120px", overflowY: "auto" as const, marginBottom: "10px", display: "flex", flexDirection: "column", gap: "6px" }}>
+              {chatHistory.slice(-6, -2).map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{ maxWidth: "80%", padding: "7px 12px", borderRadius: m.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: m.role === "user" ? "#e0e7ff" : "#f7f8fc", fontSize: "11px", color: m.role === "user" ? "#3730a3" : "#374151", fontWeight: 600, lineHeight: 1.5 }}>
+                    {m.text.slice(0, 120)}{m.text.length > 120 ? "..." : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div style={{ background: "#f7f8fc", borderRadius: "18px", padding: "16px", marginBottom: "14px" }}>
             <p style={{ fontSize: "14px", color: "#374151", fontWeight: 600, lineHeight: 1.6 }}>{agentResult.text}</p>
           </div>
@@ -217,7 +236,7 @@ export default function VoiceOverlay() {
                 {availableVoices.slice(0, 12).map(v => (
                   <button key={v.name} onClick={() => { setSelectedVoice(v.name); setShowVoicePicker(false); speak("Hi, I am " + v.name.split(" ")[0], v.name); }}
                     style={{ display: "block", width: "100%", padding: "6px 10px", background: selectedVoice === v.name ? "#e0e7ff" : "transparent", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: selectedVoice === v.name ? 700 : 500, color: selectedVoice === v.name ? "#4338ca" : "#6b7280", cursor: "pointer", fontFamily: "inherit", textAlign: "left" as const, marginBottom: "2px" }}>
-                    {selectedVoice === v.name ? "✓ " : ""}{v.name} <span style={{ fontSize: "9px", color: "#9ca3af" }}>{v.lang}</span>
+                    {selectedVoice === v.name ? "✓ " : ""}{(v as any).label || v.name}
                   </button>
                 ))}
               </div>

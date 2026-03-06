@@ -4,7 +4,7 @@ import { addNutritionEntry, getSettings, updateSettings } from "@/lib/supabase/q
 import { format } from "date-fns";
 
 export interface AgentAction {
-  type: "nutrition_log" | "workout_plan" | "finance_split" | "macro_targets" | "none";
+  type: "nutrition_log" | "workout_plan" | "finance_split" | "macro_targets" | "task_add" | "task_complete" | "hydration_log" | "sleep_log" | "none";
   data?: any;
 }
 
@@ -88,6 +88,53 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
     return "Finance split logged ✓";
   }
 
+  if (action.type === "task_add" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    const tasks = Array.isArray(action.data.tasks) ? action.data.tasks : [action.data];
+    for (const t of tasks) {
+      await supabase.from("tasks").insert({
+        id: Math.random().toString(36).slice(2),
+        user_id: session.user.id,
+        date: today,
+        title: t.title || t,
+        completed: false,
+        priority: t.priority || 2,
+        created_at: Date.now(),
+      });
+    }
+    return tasks.length > 1 ? `Added ${tasks.length} tasks ✓` : `Task added ✓`;
+  }
+
+  if (action.type === "hydration_log" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    await supabase.from("hydration_entries").insert({
+      id: Math.random().toString(36).slice(2),
+      user_id: session.user.id,
+      date: today,
+      amount: action.data.amount || 250,
+      timestamp: Date.now(),
+    });
+    return `Logged ${action.data.amount}ml water ✓`;
+  }
+
+  if (action.type === "sleep_log" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    await supabase.from("sleep_entries").upsert({
+      id: Math.random().toString(36).slice(2),
+      user_id: session.user.id,
+      date: today,
+      duration: action.data.duration || 8,
+      quality: action.data.quality || 3,
+      bedtime: action.data.bedtime || "23:00",
+      wake_time: action.data.wakeTime || "07:00",
+      timestamp: Date.now(),
+    });
+    return `Sleep logged ✓`;
+  }
+
   if (action.type === "workout_plan" && action.data) {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) throw new Error("Not logged in");
@@ -121,21 +168,40 @@ export function speak(text: string, voiceName?: string) {
     // Priority order of natural voices
     const preferred = voices.find(v =>
       v.name === "Samantha" ||
-      v.name === "Karen" ||
-      v.name === "Moira" ||
-      v.name.includes("Google UK English Female") ||
       v.name.includes("Google US English") ||
-      v.name.includes("Zoe") ||
-      v.name.includes("Serena")
+      v.name.includes("Google UK English Female") ||
+      v.name === "Karen" ||
+      v.name === "Moira"
     );
     if (preferred) utt.voice = preferred;
   }
   window.speechSynthesis.speak(utt);
 }
 
-export function getAvailableVoices(): { name: string; lang: string }[] {
+export function getAvailableVoices(): { name: string; lang: string; label: string }[] {
   if (typeof window === "undefined") return [];
-  return window.speechSynthesis.getVoices()
-    .filter(v => v.lang.startsWith("en"))
-    .map(v => ({ name: v.name, lang: v.lang }));
+  const NICE_VOICES = [
+    { match: "Samantha", label: "🇺🇸 Samantha (US Female)" },
+    { match: "Google US English", label: "🇺🇸 Google US English" },
+    { match: "Google UK English Female", label: "🇬🇧 Google UK Female" },
+    { match: "Google UK English Male", label: "🇬🇧 Google UK Male" },
+    { match: "Karen", label: "🇦🇺 Karen (Australian)" },
+    { match: "Moira", label: "🇮🇪 Moira (Irish)" },
+    { match: "Daniel", label: "🇬🇧 Daniel (British Male)" },
+    { match: "Tessa", label: "🇿🇦 Tessa (South African)" },
+    { match: "Rishi", label: "🇮🇳 Rishi (Indian)" },
+  ];
+  const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith("en"));
+  const result: { name: string; lang: string; label: string }[] = [];
+  for (const nv of NICE_VOICES) {
+    const found = voices.find(v => v.name.includes(nv.match));
+    if (found) result.push({ name: found.name, lang: found.lang, label: nv.label });
+  }
+  // Add remaining en voices not already included
+  for (const v of voices) {
+    if (!result.find(r => r.name === v.name) && result.length < 10) {
+      result.push({ name: v.name, lang: v.lang, label: v.name });
+    }
+  }
+  return result;
 }
