@@ -51,6 +51,15 @@ export default function FoodLogList({ entries, onDelete, onQuickAdd }: Props) {
                   <p style={{ color: "#52525b", fontSize: "10px", letterSpacing: "0.05em", marginTop: "2px" }}>
                     {e.calories}kcal · {e.protein}g prot · {e.carbs}g carbs · {e.fat}g fat{e.fiber ? ` · ${e.fiber}g fiber` : ""}
                   </p>
+                  {e.vitamins && Object.values(e.vitamins).some(v => v) && (
+                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
+                      {e.vitamins.vitA && <span style={{ fontSize: "9px", color: "#f59e0b", background: "#1c1400", borderRadius: "4px", padding: "1px 6px" }}>Vit A</span>}
+                      {e.vitamins.vitC && <span style={{ fontSize: "9px", color: "#f97316", background: "#1c0a00", borderRadius: "4px", padding: "1px 6px" }}>Vit C</span>}
+                      {e.vitamins.vitD && <span style={{ fontSize: "9px", color: "#facc15", background: "#1c1800", borderRadius: "4px", padding: "1px 6px" }}>Vit D</span>}
+                      {e.vitamins.calcium && <span style={{ fontSize: "9px", color: "#a78bfa", background: "#13001c", borderRadius: "4px", padding: "1px 6px" }}>Ca</span>}
+                      {e.vitamins.iron && <span style={{ fontSize: "9px", color: "#f87171", background: "#1c0000", borderRadius: "4px", padding: "1px 6px" }}>Iron</span>}
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => onQuickAdd(e)} title="Add again"
                   style={{ background: "none", border: "none", color: "#3f3f46", fontSize: "16px", cursor: "pointer", padding: "4px 8px" }}>+</button>

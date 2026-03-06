@@ -38,6 +38,7 @@ export async function getSettings(): Promise<UserSettings> {
       tokensResetDate: new Date().toISOString().slice(0, 10),
       homeWidgets: data.home_widgets ?? { streak: true, trendGraph: true, hydrationChart: true, sleepChart: true },
       navConfig: data.nav_config ?? ["nutrition","tasks","friends"],
+      recentFoods: data.recent_foods ?? {},
     };
   }
 
@@ -82,6 +83,7 @@ export async function updateSettings(patch: Partial<UserSettings>) {
   if (patch.tokensUsed !== undefined) update.tokens_used = patch.tokensUsed;
   if ((patch as any).homeWidgets) update.home_widgets = (patch as any).homeWidgets;
   if ((patch as any).navConfig) update.nav_config = (patch as any).navConfig;
+  if ((patch as any).recentFoods !== undefined) update.recent_foods = (patch as any).recentFoods;
   await supabase.from("user_settings").update(update).eq("user_id", userId);
 }
 

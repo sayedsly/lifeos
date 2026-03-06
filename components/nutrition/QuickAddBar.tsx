@@ -123,8 +123,13 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
         stream = await navigator.mediaDevices.getUserMedia({ video: true });
       }
       streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
       setScanning(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      }, 100);
       if ("BarcodeDetector" in window) {
         const detector = new (window as any).BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] });
         const scan = async () => {
@@ -282,7 +287,7 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
             </button>
           ) : (
             <div style={{ position: "relative", borderRadius: "16px", overflow: "hidden", background: "#000" }}>
-              <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "220px", objectFit: "cover", display: "block" }} />
+              <video ref={videoRef} autoPlay playsInline muted onLoadedMetadata={() => videoRef.current?.play()} style={{ width: "100%", height: "220px", objectFit: "cover", display: "block" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
                 <div style={{ width: "65%", height: "2px", background: "rgba(255,255,255,0.7)", boxShadow: "0 0 10px rgba(255,255,255,0.9)" }} />
               </div>
