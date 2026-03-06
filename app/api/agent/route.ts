@@ -60,7 +60,6 @@ export async function POST(req: NextRequest) {
       userSupabase.from("finance_goals").select("*").eq("user_id", userId),
       userSupabase.from("finance_transactions").select("*").eq("user_id", userId).gte("date", weekAgo),
       userSupabase.from("body_weight_entries").select("date,weight,unit").eq("user_id", userId).order("timestamp", { ascending: false }).limit(10),
-      userSupabase.from("tasks").select("date,title,completed,priority").eq("user_id", userId).gte("date", weekAgo),
     ]);
 
     const s = settingsRow || {};
