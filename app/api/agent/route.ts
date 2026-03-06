@@ -48,7 +48,8 @@ export async function POST(req: NextRequest) {
       { data: settingsRow },
       { data: financeGoals },
       { data: financeTransactions },
-    ] = (await Promise.all([
+      { data: bodyWeight },
+    ] = await Promise.all([
       userSupabase.from("momentum_snapshots").select("date,score,breakdown").eq("user_id", userId).gte("date", weekAgo).order("date"),
       userSupabase.from("nutrition_entries").select("date,calories,protein,carbs,fat,fiber,food,meal").eq("user_id", userId).gte("date", weekAgo).order("timestamp", { ascending: false }),
       userSupabase.from("sleep_entries").select("date,duration,quality").eq("user_id", userId).gte("date", weekAgo),
