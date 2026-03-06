@@ -46,7 +46,7 @@ export default function HomePage() {
 
   const loadAll = async () => {
     try {
-      const [s, h, sl, stepCount, trendData, streakCount, prevMomentum, nutritionTotals] = await Promise.all([
+      const [s, h, sl, stepCount, trendData, streakCount, nutritionTotals, prevMomentum] = await Promise.all([
         getSettings(),
         getHydrationForDate(today()),
         getSleepForDate(today()),
