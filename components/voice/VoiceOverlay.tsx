@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useLifeStore } from "@/store/useLifeStore";
-import { executeAgentAction, speak } from "@/lib/agent";
+import { executeAgentAction, speak, getAvailableVoices } from "@/lib/agent";
 import { useVoice } from "@/hooks/useVoice";
 import { getVoiceExamples, saveVoiceExamples } from "@/lib/supabase/queries";
 
@@ -58,6 +58,15 @@ export default function VoiceOverlay() {
   const [rateLimited, setRateLimited] = useState(false);
   const [agentDone, setAgentDone] = useState(false);
   const hasStarted = useRef(false);
+  useEffect(() => {
+    const load = () => {
+      const v = getAvailableVoices();
+      if (v.length > 0) setAvailableVoices(v);
+    };
+    load();
+    window.speechSynthesis?.addEventListener("voiceschanged", load);
+    return () => window.speechSynthesis?.removeEventListener("voiceschanged", load);
+  }, []);
 
   useEffect(() => {
     if (isVoiceOpen && !hasStarted.current) {
@@ -114,7 +123,7 @@ export default function VoiceOverlay() {
     try {
       await executeAgentAction(agentResult.action);
       setAgentDone(true);
-      speak("Done! " + agentResult.text.slice(0, 80));
+      speak("Done! " + agentResult.text.slice(0, 80), selectedVoice || undefined);
       setTimeout(() => { setVoiceOpen(false); setAgentResult(null); setAgentDone(false); window.location.reload(); }, 2000);
     } catch (e: any) { console.error(e); }
     setAgentSaving(false);
@@ -168,7 +177,7 @@ export default function VoiceOverlay() {
               <p style={{ fontSize: "10px", fontWeight: 800, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.15em" }}>AI Response</p>
               {transcript && <p style={{ fontSize: "11px", color: "#9ca3af", fontStyle: "italic" }}>"{transcript}"</p>}
             </div>
-            <button onClick={() => speak(agentResult.text)}
+            <button onClick={() => speak(agentResult.text, selectedVoice || undefined)}
               style={{ marginLeft: "auto", width: 36, height: 36, borderRadius: "10px", background: "#f0fdf4", border: "none", cursor: "pointer", fontSize: "16px" }}>
               🔊
             </button>
@@ -189,6 +198,28 @@ export default function VoiceOverlay() {
               </p>
             </div>
           )}
+
+          {/* Voice picker */}
+          <div style={{ marginBottom: "8px" }}>
+            <button onClick={() => setShowVoicePicker(!showVoicePicker)}
+              style={{ padding: "6px 12px", background: "#f7f8fc", border: "none", borderRadius: "8px", fontSize: "10px", fontWeight: 700, color: "#9ca3af", cursor: "pointer", fontFamily: "inherit" }}>
+              🔊 Voice: {selectedVoice ? selectedVoice.split(" ").slice(0,2).join(" ") : "Default"}
+            </button>
+            {showVoicePicker && availableVoices.length > 0 && (
+              <div style={{ marginTop: "6px", background: "#f7f8fc", borderRadius: "12px", padding: "8px", maxHeight: "120px", overflowY: "auto" as const }}>
+                <button onClick={() => { setSelectedVoice(""); setShowVoicePicker(false); }}
+                  style={{ display: "block", width: "100%", padding: "6px 10px", background: !selectedVoice ? "#e0e7ff" : "transparent", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, color: !selectedVoice ? "#4338ca" : "#6b7280", cursor: "pointer", fontFamily: "inherit", textAlign: "left" as const, marginBottom: "2px" }}>
+                  ✨ Auto (Best available)
+                </button>
+                {availableVoices.slice(0, 12).map(v => (
+                  <button key={v.name} onClick={() => { setSelectedVoice(v.name); setShowVoicePicker(false); speak("Hi, I am " + v.name.split(" ")[0], v.name); }}
+                    style={{ display: "block", width: "100%", padding: "6px 10px", background: selectedVoice === v.name ? "#e0e7ff" : "transparent", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: selectedVoice === v.name ? 700 : 500, color: selectedVoice === v.name ? "#4338ca" : "#6b7280", cursor: "pointer", fontFamily: "inherit", textAlign: "left" as const, marginBottom: "2px" }}>
+                    {selectedVoice === v.name ? "✓ " : ""}{v.name} <span style={{ fontSize: "9px", color: "#9ca3af" }}>{v.lang}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {agentDone ? (
             <div style={{ textAlign: "center", padding: "12px 0" }}>
@@ -211,7 +242,7 @@ export default function VoiceOverlay() {
                   {agentSaving ? "Saving..." : "Apply ✓"}
                 </button>
               ) : (
-                <button onClick={() => { speak(agentResult.text); }}
+                <button onClick={() => { speak(agentResult.text, selectedVoice || undefined); }}
                   style={{ flex: 1, padding: "13px", borderRadius: "14px", background: "#f0fdf4", border: "none", color: "#16a34a", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
                   🔊 Read Aloud
                 </button>

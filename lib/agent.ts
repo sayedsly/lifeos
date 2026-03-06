@@ -106,16 +106,36 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
 }
 
 // Speak text aloud using Web Speech Synthesis
-export function speak(text: string) {
+export function speak(text: string, voiceName?: string) {
   if (typeof window === "undefined") return;
   window.speechSynthesis?.cancel();
   const utt = new SpeechSynthesisUtterance(text);
-  utt.rate = 1.05;
+  utt.rate = 1.0;
   utt.pitch = 1;
   utt.volume = 1;
-  // Prefer a natural-sounding voice
   const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(v => v.name.includes("Samantha") || v.name.includes("Karen") || v.name.includes("Google UK") || v.name.includes("Moira"));
-  if (preferred) utt.voice = preferred;
+  if (voiceName) {
+    const v = voices.find(v => v.name === voiceName);
+    if (v) utt.voice = v;
+  } else {
+    // Priority order of natural voices
+    const preferred = voices.find(v =>
+      v.name === "Samantha" ||
+      v.name === "Karen" ||
+      v.name === "Moira" ||
+      v.name.includes("Google UK English Female") ||
+      v.name.includes("Google US English") ||
+      v.name.includes("Zoe") ||
+      v.name.includes("Serena")
+    );
+    if (preferred) utt.voice = preferred;
+  }
   window.speechSynthesis.speak(utt);
+}
+
+export function getAvailableVoices(): { name: string; lang: string }[] {
+  if (typeof window === "undefined") return [];
+  return window.speechSynthesis.getVoices()
+    .filter(v => v.lang.startsWith("en"))
+    .map(v => ({ name: v.name, lang: v.lang }));
 }

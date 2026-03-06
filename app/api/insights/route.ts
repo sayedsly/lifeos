@@ -132,7 +132,7 @@ Tasks:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: "You are a personal life coach inside LifeOS. Give concise honest motivating weekly insights, under 200 words, short paragraphs, no bullets, reference actual numbers.\n\n" + weekSummary + "\n\nGive me my weekly insight." }] }],
-          generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 800, temperature: 0.7 },
         }),
       }
     );

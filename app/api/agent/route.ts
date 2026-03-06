@@ -148,7 +148,7 @@ ACTION:{"type":"none"}
 
 For purely informational questions, just answer and end with ACTION:{"type":"none"}
 
-Keep responses concise (under 150 words), warm, specific to their data. Use their actual numbers.`;
+Keep responses concise (under 250 words), warm, specific to their data. Use their actual numbers. IMPORTANT: When user gives body measurements and goals (like height, weight, body fat goal), ALWAYS calculate and return macro targets using ACTION:{type:macro_targets}. Never leave a sentence unfinished.`;
 
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -157,7 +157,7 @@ Keep responses concise (under 150 words), warm, specific to their data. Use thei
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + "\n\nUser says: " + message }] }],
-          generationConfig: { maxOutputTokens: 500, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
         }),
       }
     );
