@@ -72,7 +72,7 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
     if (!session) throw new Error("Not logged in");
     const { data: goals } = await supabase.from("finance_goals").select("*").eq("user_id", session.user.id);
     for (const split of action.data.splits) {
-      const goal = (goals || []).find((g: any) => g.name.toLowerCase().includes(split.goalName.toLowerCase()));
+      const goal = (goals || []).find((g: any) => g.name.toLowerCase().includes(split.goalName.toLowerCase()) || split.goalName.toLowerCase().includes(g.name.toLowerCase()));
       await supabase.from("finance_transactions").insert({
         id: Math.random().toString(36).slice(2),
         user_id: session.user.id,
@@ -82,7 +82,7 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
         description: `AI split to ${split.goalName}`,
         category: "savings",
         type: "income",
-        goal_id: goal?.id || null,
+        goal_id: goal?.id ?? null,
       });
     }
     return "Finance split logged ✓";

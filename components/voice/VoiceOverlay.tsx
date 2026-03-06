@@ -128,7 +128,7 @@ export default function VoiceOverlay() {
     try {
       await executeAgentAction(agentResult.action);
       setAgentDone(true);
-      speak("Done! " + agentResult.text.slice(0, 80), selectedVoice || undefined);
+      // no auto-speak after action
       setTimeout(() => { setVoiceOpen(false); setAgentResult(null); setAgentDone(false); window.location.reload(); }, 2000);
     } catch (e: any) { console.error(e); }
     setAgentSaving(false);
@@ -270,6 +270,20 @@ export default function VoiceOverlay() {
                   🔊 Read Aloud
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Follow-up */}
+          {!agentDone && (
+            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
+              <input value={followUpText} onChange={e => setFollowUpText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); cancel(); submitText(t); } }}
+                placeholder="Ask a follow-up..."
+                style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
+              <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); cancel(); submitText(t); } else { handleAgentFollowUp(); } }}
+                style={{ width: 46, height: 46, borderRadius: "12px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontSize: "20px", cursor: "pointer", flexShrink: 0 }}>
+                {followUpText.trim() ? "→" : "🎙️"}
+              </button>
             </div>
           )}
         </div>
