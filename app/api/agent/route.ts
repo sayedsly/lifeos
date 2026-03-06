@@ -4,7 +4,7 @@ import { format, subDays } from "date-fns";
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, accessToken, message, context } = await req.json();
+    const { userId, accessToken, message, history } = await req.json();
     if (!userId || !accessToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userSupabase = createClient(
@@ -162,13 +162,18 @@ Rules:
 - NEVER leave a response mid-sentence. Always complete your thought.
 - Keep responses under 200 words, warm, specific to their actual data numbers.`;
 
+    // Build conversation history context
+    const historyContext = history && history.length > 0
+      ? "\n\nPREVIOUS CONVERSATION THIS SESSION:\n" + history.slice(-6).map((m: any) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`).join("\n")
+      : "";
+
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + "\n\nUser says: " + message }] }],
+          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message }] }],
           generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
         }),
       }

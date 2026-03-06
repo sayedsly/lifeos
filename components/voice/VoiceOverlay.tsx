@@ -293,7 +293,7 @@ export default function VoiceOverlay() {
 
   // ── LISTENING ──
   if (state === "recording" || (mode === "listening" && state === "idle")) return (
-    <div style={sheet} onClick={close}>
+    <div style={sheet}>
       <div style={card} onClick={e => e.stopPropagation()}>
         <p style={{ fontSize: "11px", fontWeight: 800, color: "#9ca3af", textAlign: "center", letterSpacing: "0.2em", marginBottom: "20px" }}>
           {speechSupported ? "LISTENING..." : "QUICK ADD"}

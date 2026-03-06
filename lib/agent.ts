@@ -13,14 +13,14 @@ export interface AgentResult {
   action: AgentAction | null;
 }
 
-export async function runAgent(message: string): Promise<AgentResult> {
+export async function runAgent(message: string, history: {role:"user"|"ai";text:string}[] = []): Promise<AgentResult> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("Not logged in");
 
   const res = await fetch("/api/agent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: session.user.id, accessToken: session.access_token, message }),
+    body: JSON.stringify({ userId: session.user.id, accessToken: session.access_token, message, history }),
   });
 
   if (res.status === 429) throw new Error("RATE_LIMITED");

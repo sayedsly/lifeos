@@ -1,4 +1,5 @@
 "use client";
+import NotificationSettings from "@/components/NotificationSettings";
 import AdminDashboard from "@/components/AdminDashboard";
 import { supabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
@@ -202,6 +203,7 @@ export default function SettingsPage() {
             </button>
           )}
           {pushError && <p style={{ color: "#f87171", fontSize: "11px" }}>{pushError}</p>}
+          <NotificationSettings subscribed={subscribed} />
         </div>
       )}
 

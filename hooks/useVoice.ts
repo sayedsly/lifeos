@@ -47,7 +47,7 @@ export function useVoice() {
       }
       // Route to AI agent
       setIntent(null);
-      const result = await runAgent(text);
+      const result = await runAgent(text, []);
       setAgentResult(result);
       setState("confirming");
     } catch (e: any) { setError(e.message); setState("error"); }
