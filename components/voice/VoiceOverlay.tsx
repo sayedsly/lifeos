@@ -144,11 +144,11 @@ export default function VoiceOverlay() {
   };
 
   const handleAgentFollowUp = () => {
-    setIsFollowUp(true); // set FIRST so overlay doesnt close
-    setMode("listening");
+    setIsFollowUp(true);
     setAgentResult(null);
     resetForFollowUp();
-    start();
+    setMode("listening");
+    // Don't call start() here - user taps mic inside follow-up screen
   };
 
   const handleAddExample = async () => {
@@ -192,16 +192,17 @@ export default function VoiceOverlay() {
             </p>
             <button onClick={() => { setIsFollowUp(false); close(); }} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#9ca3af" }}>✕</button>
           </div>
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: "22px" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: "22px", position: "relative", height: 100 }}>
             {state === "recording" && [90, 68, 48].map((size, i) => (
-              <div key={i} style={{ position: "absolute", width: size, height: size, borderRadius: "50%", background: `rgba(99,102,241,${0.08 - i * 0.02})`, animation: `pulse ${1.2 + i * 0.2}s ease-in-out infinite` }} />
+              <div key={i} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: size, height: size, borderRadius: "50%", background: `rgba(99,102,241,${0.08 - i * 0.02})`, animation: `pulse ${1.2 + i * 0.2}s ease-in-out infinite` }} />
             ))}
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: state === "processing" ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "linear-gradient(135deg,#667eea,#764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", zIndex: 1 }}>
-              {state === "processing" ? "✨" : "🎙️"}
+            <div onClick={() => { if (state === "idle") start(); else if (state === "recording") stop(); }}
+              style={{ width: 64, height: 64, borderRadius: "50%", background: state === "processing" ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "linear-gradient(135deg,#667eea,#764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", zIndex: 1, cursor: "pointer", position: "relative" }}>
+              {state === "processing" ? "✨" : state === "recording" ? "⏹️" : "🎙️"}
             </div>
           </div>
           <p style={{ textAlign: "center", fontSize: "13px", color: "#6b7280", fontWeight: 600 }}>
-            {state === "processing" ? "Getting your answer..." : "Listening for follow-up..."}
+            {state === "processing" ? "Getting your answer..." : state === "recording" ? "Listening... tap to stop" : "Tap mic to follow up"}
           </p>
           {state === "recording" && (
             <div style={{ display: "flex", gap: "8px", marginTop: "16px" }}>
