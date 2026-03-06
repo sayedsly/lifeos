@@ -164,6 +164,7 @@ export interface UserSettings {
   tokensResetDate: string;
   homeWidgets?: { streak: boolean; trendGraph: boolean; hydrationChart: boolean; sleepChart: boolean };
   navConfig?: string[];
+  recentFoods?: Record<string, any[]>;
 }
 
 export interface ParsedIntent {

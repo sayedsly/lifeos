@@ -12,6 +12,8 @@
     "@anthropic-ai/sdk": "^0.36.3",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
+    "@zxing/browser": "^0.1.5",
+    "@zxing/library": "^0.21.3",
     "date-fns": "^4.1.0",
     "dexie": "^4.0.10",
     "nanoid": "^5.1.5",
