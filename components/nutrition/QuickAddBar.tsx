@@ -8,7 +8,7 @@ interface FoodResult {
   name: string; brand: string; serving: string; servingGrams: number;
   calories: number; protein: number; carbs: number; fat: number; fiber: number;
   vitA?: number; vitC?: number; vitD?: number; calcium?: number; iron?: number;
-  source: string; barcode?: string;
+  source: string;
 }
 
 interface Props { onAdd: () => void; defaultMeal?: MealCategory; }
@@ -44,7 +44,7 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
 
   useEffect(() => {
     getSettings().then(s => {
-      if (s.recentFoods) setRecentFoods(s.recentFoods as any);
+      if ((s as any).recentFoods) setRecentFoods((s as any).recentFoods);
     }).catch(() => {});
   }, []);
 
@@ -65,7 +65,7 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
     if (!q.trim() || q.length < 2) { setResults([]); return; }
     setLoading(true);
     try {
-      const res = await fetch(\`/api/nutrition/search?q=\${encodeURIComponent(q)}\`);
+      const res = await fetch("/api/nutrition/search?q=" + encodeURIComponent(q));
       const data = await res.json();
       setResults(data.foods || []);
     } catch { setResults([]); }
@@ -75,7 +75,7 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
   const lookupBarcode = async (barcode: string) => {
     setBarcodeLoading(true);
     try {
-      const res = await fetch(\`https://world.openfoodfacts.org/api/v0/product/\${barcode}.json\`);
+      const res = await fetch("https://world.openfoodfacts.org/api/v0/product/" + barcode + ".json");
       const data = await res.json();
       if (data.status !== 1 || !data.product) throw new Error("Product not found");
       const p = data.product;
@@ -95,7 +95,6 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
         calcium: n["calcium_serving"] || undefined,
         iron: n["iron_serving"] || undefined,
         source: "Open Food Facts",
-        barcode,
       };
       selectFood(food);
       setScanning(false);
@@ -111,26 +110,19 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setScanning(true);
-
-      // Use BarcodeDetector if available
       if ("BarcodeDetector" in window) {
-        const detector = new (window as any).BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"] });
+        const detector = new (window as any).BarcodeDetector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] });
         const scan = async () => {
-          if (!videoRef.current || !scanning) return;
+          if (!videoRef.current) return;
           try {
             const barcodes = await detector.detect(videoRef.current);
-            if (barcodes.length > 0) {
-              await lookupBarcode(barcodes[0].rawValue);
-              return;
-            }
+            if (barcodes.length > 0) { await lookupBarcode(barcodes[0].rawValue); return; }
           } catch {}
-          setTimeout(scan, 300);
+          setTimeout(scan, 400);
         };
         setTimeout(scan, 500);
       }
-    } catch (e) {
-      alert("Camera access denied. Enter barcode manually below.");
-    }
+    } catch { alert("Camera access denied. Enter barcode manually below."); }
   };
 
   const stopCamera = () => {
@@ -177,11 +169,10 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
         id: Math.random().toString(36).slice(2),
         date: today, timestamp: Date.now(),
         food: selected.name,
-        amount: editingMacros ? "custom" : \`\${qty > 1 ? qty + "x " : ""}\${selected.serving}\`,
+        amount: editingMacros ? "custom" : (qty > 1 ? qty + "x " : "") + selected.serving,
         meal, ...macros, source: "search",
-        vitamins: selected.vitA || selected.vitC || selected.vitD || selected.calcium || selected.iron ? {
-          vitA: selected.vitA, vitC: selected.vitC, vitD: selected.vitD,
-          calcium: selected.calcium, iron: selected.iron,
+        vitamins: (selected.vitA || selected.vitC || selected.calcium || selected.iron) ? {
+          vitA: selected.vitA, vitC: selected.vitC, calcium: selected.calcium, iron: selected.iron,
         } : undefined,
       });
       await saveRecentFood(selected, meal);
@@ -240,16 +231,16 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
         ))}
       </div>
 
-      {/* Recent foods for this meal */}
+      {/* Recent foods */}
       {mealRecent.length > 0 && !selected && (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Recent in {meal}</p>
-          <div style={{ display: "flex", gap: "6px", overflowX: "auto", paddingBottom: "2px" }}>
+          <div style={{ display: "flex", gap: "6px", overflowX: "auto" as const, paddingBottom: "2px" }}>
             {mealRecent.map((food, i) => (
               <button key={i} onClick={() => quickAddRecent(food)} disabled={saving}
-                style={{ flexShrink: 0, padding: "8px 12px", borderRadius: "12px", border: "1px solid #27272a", background: "#18181b", cursor: "pointer", textAlign: "left" }}>
+                style={{ flexShrink: 0, padding: "8px 12px", borderRadius: "12px", border: "1px solid #27272a", background: "#18181b", cursor: "pointer", textAlign: "left" as const }}>
                 <p style={{ color: "white", fontSize: "11px", fontWeight: 600, whiteSpace: "nowrap" }}>{food.name}</p>
-                <p style={{ color: "#52525b", fontSize: "9px", marginTop: "2px" }}>{food.calories} kcal</p>
+                <p style={{ color: "#52525b", fontSize: "9px", marginTop: "2px" }}>{food.calories} kcal · tap to add</p>
               </button>
             ))}
           </div>
@@ -260,8 +251,8 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
       <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "14px", padding: "4px" }}>
         {(["search", "barcode", "manual"] as const).map(m => (
           <button key={m} onClick={() => { setMode(m); setSelected(null); setQuery(""); setResults([]); if (m !== "barcode") stopCamera(); }}
-            style={{ flex: 1, padding: "8px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase" as const, background: mode === m ? "white" : "transparent", color: mode === m ? "black" : "#52525b" }}>
-            {m === "search" ? "🔍" : m === "barcode" ? "📷" : "✏️"} {m}
+            style={{ flex: 1, padding: "8px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, background: mode === m ? "white" : "transparent", color: mode === m ? "black" : "#52525b" }}>
+            {m === "search" ? "🔍 Search" : m === "barcode" ? "📷 Barcode" : "✏️ Manual"}
           </button>
         ))}
       </div>
@@ -271,22 +262,22 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {!scanning ? (
             <button onClick={startCamera}
-              style={{ width: "100%", padding: "16px", borderRadius: "14px", background: "#18181b", border: "1px solid #27272a", color: "white", fontWeight: 700, fontSize: "14px", cursor: "pointer" }}>
-              📷 Scan Barcode
+              style={{ width: "100%", padding: "20px", borderRadius: "14px", background: "#18181b", border: "1px solid #27272a", color: "white", fontWeight: 700, fontSize: "15px", cursor: "pointer" }}>
+              📷 Open Camera to Scan
             </button>
           ) : (
             <div style={{ position: "relative", borderRadius: "16px", overflow: "hidden", background: "#000" }}>
-              <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }} />
+              <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "220px", objectFit: "cover", display: "block" }} />
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-                <div style={{ width: "60%", height: "2px", background: "rgba(255,255,255,0.6)", boxShadow: "0 0 8px rgba(255,255,255,0.8)" }} />
+                <div style={{ width: "65%", height: "2px", background: "rgba(255,255,255,0.7)", boxShadow: "0 0 10px rgba(255,255,255,0.9)" }} />
               </div>
               <button onClick={stopCamera}
-                style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.6)", border: "none", color: "white", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontSize: "12px" }}>
+                style={{ position: "absolute", top: "8px", right: "8px", background: "rgba(0,0,0,0.7)", border: "none", color: "white", borderRadius: "8px", padding: "6px 12px", cursor: "pointer", fontSize: "12px" }}>
                 Stop
               </button>
             </div>
           )}
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "8px" }}>
             <input placeholder="Or type barcode number..." value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter" && barcodeInput.trim()) lookupBarcode(barcodeInput.trim()); }}
               style={{ ...inputStyle, flex: 1 }} />
@@ -304,18 +295,18 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <input placeholder="Search any food..." value={query} onChange={e => handleQueryChange(e.target.value)}
             style={{ ...inputStyle, padding: "14px 16px", borderRadius: "14px", fontSize: "15px" }} />
-          {loading && <p style={{ color: "#52525b", fontSize: "11px", textAlign: "center", letterSpacing: "0.1em", textTransform: "uppercase" }}>Searching...</p>}
+          {loading && <p style={{ color: "#52525b", fontSize: "11px", textAlign: "center" }}>Searching...</p>}
           {results.length > 0 && !selected && (
             <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", overflow: "hidden" }}>
               {results.map((food, i) => (
                 <button key={i} onClick={() => selectFood(food)}
-                  style={{ width: "100%", textAlign: "left", padding: "12px 16px", background: "none", border: "none", borderBottom: i < results.length - 1 ? "1px solid #27272a" : "none", cursor: "pointer" }}>
+                  style={{ width: "100%", textAlign: "left" as const, padding: "12px 16px", background: "none", border: "none", borderBottom: i < results.length - 1 ? "1px solid #27272a" : "none", cursor: "pointer" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div style={{ flex: 1, marginRight: "8px" }}>
                       <p style={{ color: "white", fontSize: "13px", fontWeight: 600 }}>{food.name}</p>
-                      <p style={{ color: "#52525b", fontSize: "10px", marginTop: "2px" }}>{food.brand && \`\${food.brand} · \`}{food.serving}</p>
+                      <p style={{ color: "#52525b", fontSize: "10px", marginTop: "2px" }}>{food.brand && food.brand + " · "}{food.serving}</p>
                     </div>
-                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{ textAlign: "right" as const, flexShrink: 0 }}>
                       <p style={{ color: "white", fontSize: "13px", fontWeight: 700 }}>{food.calories} kcal</p>
                       <p style={{ color: "#52525b", fontSize: "10px" }}>{food.protein}g prot</p>
                     </div>
@@ -331,27 +322,25 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
                   <p style={{ color: "white", fontSize: "13px", fontWeight: 700 }}>{selected.name}</p>
                   {selected.brand && <p style={{ color: "#52525b", fontSize: "11px", marginTop: "2px" }}>{selected.brand}</p>}
                 </div>
-                <button onClick={() => { setSelected(null); setQuery(""); }}
-                  style={{ background: "none", border: "none", color: "#52525b", fontSize: "18px", cursor: "pointer" }}>×</button>
+                <button onClick={() => { setSelected(null); setQuery(""); }} style={{ background: "none", border: "none", color: "#52525b", fontSize: "18px", cursor: "pointer" }}>×</button>
               </div>
               {!editingMacros && (
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <p style={{ fontSize: "11px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", flexShrink: 0 }}>Servings ({selected.serving})</p>
-                  <input type="number" value={servings} onChange={e => setServings(e.target.value)} min="0.25" step="0.25"
-                    style={{ ...inputStyle, width: "80px" }} />
+                  <p style={{ fontSize: "11px", color: "#52525b", textTransform: "uppercase" as const, letterSpacing: "0.1em", flexShrink: 0 }}>Servings ({selected.serving})</p>
+                  <input type="number" value={servings} onChange={e => setServings(e.target.value)} min="0.25" step="0.25" style={{ ...inputStyle, width: "80px" }} />
                 </div>
               )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
                 {(["calories", "protein", "carbs", "fat", "fiber"] as const).map(key => (
-                  <div key={key} style={{ textAlign: "center", background: "#27272a", borderRadius: "10px", padding: "8px 4px" }}>
+                  <div key={key} style={{ textAlign: "center" as const, background: "#27272a", borderRadius: "10px", padding: "8px 4px" }}>
                     {editingMacros ? (
                       <input type="number" value={(editedMacros as any)[key]}
                         onChange={e => setEditedMacros(p => ({ ...p, [key]: parseFloat(e.target.value) || 0 }))}
-                        style={{ width: "100%", background: "none", border: "none", color: "white", fontSize: "14px", fontWeight: 700, textAlign: "center", outline: "none" }} />
+                        style={{ width: "100%", background: "none", border: "none", color: "white", fontSize: "14px", fontWeight: 700, textAlign: "center" as const, outline: "none" }} />
                     ) : (
                       <p style={{ fontSize: "14px", fontWeight: 700, color: "white" }}>{(macros as any)[key]}{key !== "calories" ? "g" : ""}</p>
                     )}
-                    <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "2px" }}>{key === "calories" ? "kcal" : key}</p>
+                    <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase" as const, letterSpacing: "0.1em", marginTop: "2px" }}>{key === "calories" ? "kcal" : key}</p>
                   </div>
                 ))}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -361,19 +350,17 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
                   </button>
                 </div>
               </div>
-              {/* Vitamins if available */}
-              {(selected.vitA || selected.vitC || selected.vitD || selected.calcium || selected.iron) && (
+              {(selected.vitA || selected.vitC || selected.calcium || selected.iron) && (
                 <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
-                  {selected.vitA && <span style={{ fontSize: "10px", color: "#f59e0b", background: "#1c1400", borderRadius: "6px", padding: "3px 8px" }}>Vit A {selected.vitA}µg</span>}
-                  {selected.vitC && <span style={{ fontSize: "10px", color: "#f97316", background: "#1c0a00", borderRadius: "6px", padding: "3px 8px" }}>Vit C {selected.vitC}mg</span>}
-                  {selected.vitD && <span style={{ fontSize: "10px", color: "#facc15", background: "#1c1800", borderRadius: "6px", padding: "3px 8px" }}>Vit D {selected.vitD}µg</span>}
-                  {selected.calcium && <span style={{ fontSize: "10px", color: "#a78bfa", background: "#13001c", borderRadius: "6px", padding: "3px 8px" }}>Ca {selected.calcium}mg</span>}
-                  {selected.iron && <span style={{ fontSize: "10px", color: "#f87171", background: "#1c0000", borderRadius: "6px", padding: "3px 8px" }}>Iron {selected.iron}mg</span>}
+                  {selected.vitA && <span style={{ fontSize: "10px", color: "#f59e0b", background: "#1c1400", borderRadius: "6px", padding: "3px 8px" }}>Vit A</span>}
+                  {selected.vitC && <span style={{ fontSize: "10px", color: "#f97316", background: "#1c0a00", borderRadius: "6px", padding: "3px 8px" }}>Vit C</span>}
+                  {selected.calcium && <span style={{ fontSize: "10px", color: "#a78bfa", background: "#13001c", borderRadius: "6px", padding: "3px 8px" }}>Calcium</span>}
+                  {selected.iron && <span style={{ fontSize: "10px", color: "#f87171", background: "#1c0000", borderRadius: "6px", padding: "3px 8px" }}>Iron</span>}
                 </div>
               )}
               <button onClick={saveSelected} disabled={saving}
                 style={{ width: "100%", padding: "14px", borderRadius: "14px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
-                {saving ? "Adding..." : \`Add to \${meal.charAt(0).toUpperCase() + meal.slice(1)}\`}
+                {saving ? "Adding..." : "Add to " + meal.charAt(0).toUpperCase() + meal.slice(1)}
               </button>
             </div>
           )}
@@ -387,14 +374,14 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
             {(["calories", "protein", "carbs", "fat", "fiber"] as const).map(key => (
               <div key={key}>
-                <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>{key}</p>
+                <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase" as const, letterSpacing: "0.1em", marginBottom: "4px" }}>{key}</p>
                 <input type="number" placeholder="0" value={(manual as any)[key]} onChange={e => setManual(p => ({ ...p, [key]: e.target.value }))} style={inputStyle} />
               </div>
             ))}
           </div>
           <button onClick={saveManual} disabled={saving || !manual.food.trim()}
-            style={{ width: "100%", padding: "14px", borderRadius: "14px", background: manual.food.trim() ? "white" : "#27272a", border: "none", color: manual.food.trim() ? "black" : "#52525b", fontWeight: 700, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
-            {saving ? "Adding..." : \`Add to \${meal.charAt(0).toUpperCase() + meal.slice(1)}\`}
+            style={{ width: "100%", padding: "14px", borderRadius: "14px", background: manual.food.trim() ? "white" : "#27272a", border: "none", color: manual.food.trim() ? "black" : "#52525b", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+            {saving ? "Adding..." : "Add to " + meal.charAt(0).toUpperCase() + meal.slice(1)}
           </button>
         </div>
       )}
