@@ -63,10 +63,8 @@ export async function GET(req: NextRequest) {
   if (!prefs || prefs.length === 0) return NextResponse.json({ sent: 0, debug: "no prefs found in DB" });
 
   let sent = 0;
-  const debugInfo: any[] = [];
   for (const pref of prefs) {
     const { user_id, domain, enabled, times } = pref;
-    debugInfo.push({ user_id: user_id?.slice(0,8), domain, enabled, times });
     if (!enabled || !times || times.length === 0) continue;
 
     // Check if any scheduled time matches current time (within 15 min window)
@@ -122,5 +120,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent, time: currentTime, utc: new Date().toISOString(), prefs: prefs.length, debug: debugInfo });
+  return NextResponse.json({ sent });
 }
