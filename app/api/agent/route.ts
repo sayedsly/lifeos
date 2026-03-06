@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       { data: settingsRow },
       { data: financeGoals },
       { data: financeTransactions },
-    ] = await Promise.all([
+    ] = (await Promise.all([
       userSupabase.from("momentum_snapshots").select("date,score,breakdown").eq("user_id", userId).gte("date", weekAgo).order("date"),
       userSupabase.from("nutrition_entries").select("date,calories,protein,carbs,fat,fiber,food,meal").eq("user_id", userId).gte("date", weekAgo).order("timestamp", { ascending: false }),
       userSupabase.from("sleep_entries").select("date,duration,quality").eq("user_id", userId).gte("date", weekAgo),
@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
       userSupabase.from("user_settings").select("*").eq("user_id", userId).single(),
       userSupabase.from("finance_goals").select("*").eq("user_id", userId),
       userSupabase.from("finance_transactions").select("*").eq("user_id", userId).gte("date", weekAgo),
+      userSupabase.from("body_weight_entries").select("date,weight,unit").eq("user_id", userId).order("timestamp", { ascending: false }).limit(10),
+      userSupabase.from("tasks").select("date,title,completed,priority").eq("user_id", userId).gte("date", weekAgo),
     ]);
 
     const s = settingsRow || {};
@@ -158,7 +160,15 @@ Rules:
 - When user asks to add tasks, return ACTION task_add
 - When user logs water/hydration, return ACTION hydration_log  
 - When user says they slept X hours, return ACTION sleep_log
-- When user wants to split money across existing goals, return ACTION finance_split
+- Log expense/income: ACTION:{"type":"finance_transaction","data":{"transactions":[{"amount":50,"type":"expense","category":"food","note":"lunch"}]}}
+- Split money to goals: ACTION finance_split
+- Create finance goal: ACTION finance_goal_add
+- Log workout session: ACTION:{"type":"workout_session_log","data":{"type":"Push","duration":54,"intensity":4,"exercises":[]}}
+- Complete a task: ACTION:{"type":"task_complete","data":{"titles":["buy groceries"]}}
+- Delete a task: ACTION:{"type":"task_delete","data":{"title":"old task"}}
+- Log steps: ACTION:{"type":"steps_log","data":{"steps":8000}}
+- Log body weight: ACTION body_weight
+- When user wants to split money across existing goals: ACTION finance_split
 - When user wants to CREATE a new finance goal, return ACTION finance_goal_add with: {"goals":[{"name":"Emergency Fund","targetAmount":5000,"category":"savings"}]}
 - When user mentions their weight, return ACTION body_weight with: {"weight":165,"unit":"lbs"}
 - NEVER leave a response mid-sentence. Always complete your thought.

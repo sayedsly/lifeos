@@ -286,6 +286,33 @@ export default function VoiceOverlay() {
               </button>
             </div>
           )}
+
+          {/* Chat history */}
+          {chatHistory.length > 2 && (
+            <div style={{ maxHeight: "100px", overflowY: "auto" as const, margin: "10px 0", display: "flex", flexDirection: "column", gap: "5px" }}>
+              {chatHistory.slice(-6, -2).map((m, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div style={{ maxWidth: "82%", padding: "6px 11px", borderRadius: m.role === "user" ? "12px 12px 3px 12px" : "12px 12px 12px 3px", background: m.role === "user" ? "#e0e7ff" : "#f7f8fc", fontSize: "11px", color: m.role === "user" ? "#3730a3" : "#374151", fontWeight: 600 }}>
+                    {m.text.slice(0, 100)}{m.text.length > 100 ? "…" : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Follow-up input */}
+          {!agentDone && (
+            <div style={{ marginTop: "10px", display: "flex", gap: "8px" }}>
+              <input value={followUpText} onChange={e => setFollowUpText(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); submitText(t); } }}
+                placeholder="Type a follow-up..."
+                style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "10px 13px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
+              <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); submitText(t); } else { setAgentResult(null); start(); } }}
+                style={{ width: 44, height: 44, borderRadius: "12px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontSize: "18px", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {followUpText.trim() ? "→" : "🎙️"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );

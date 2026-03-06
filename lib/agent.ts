@@ -4,7 +4,7 @@ import { addNutritionEntry, getSettings, updateSettings } from "@/lib/supabase/q
 import { format } from "date-fns";
 
 export interface AgentAction {
-  type: "nutrition_log" | "workout_plan" | "finance_split" | "finance_goal_add" | "macro_targets" | "task_add" | "task_complete" | "hydration_log" | "sleep_log" | "body_weight" | "none";
+  type: "nutrition_log" | "workout_plan" | "workout_session_log" | "finance_split" | "finance_goal_add" | "finance_transaction" | "macro_targets" | "task_add" | "task_complete" | "task_delete" | "hydration_log" | "sleep_log" | "body_weight" | "steps_log" | "settings_update" | "none";
   data?: any;
 }
 
@@ -171,6 +171,79 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
       timestamp: Date.now(),
     });
     return `Sleep logged ✓`;
+  }
+
+  if (action.type === "workout_session_log" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    await supabase.from("workout_sessions").insert({
+      id: Math.random().toString(36).slice(2),
+      user_id: session.user.id,
+      date: today,
+      type: action.data.type || "Custom",
+      duration: action.data.duration || 45,
+      intensity: action.data.intensity || 3,
+      exercises: action.data.exercises || [],
+      timestamp: Date.now(),
+    });
+    return `Workout logged: ${action.data.type} ${action.data.duration}min ✓`;
+  }
+
+  if (action.type === "finance_transaction" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    const txns = Array.isArray(action.data.transactions) ? action.data.transactions : [action.data];
+    for (const t of txns) {
+      await supabase.from("finance_transactions").insert({
+        id: Math.random().toString(36).slice(2),
+        user_id: session.user.id,
+        date: today,
+        amount: t.amount || 0,
+        type: t.type || "expense",
+        category: t.category || "other",
+        note: t.note || t.description || "",
+        goal_id: null,
+        timestamp: Date.now(),
+      });
+    }
+    return txns.length > 1 ? `Logged ${txns.length} transactions ✓` : `Logged ${txns[0].type}: $${txns[0].amount} (${txns[0].category}) ✓`;
+  }
+
+  if (action.type === "task_complete" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    const titles = Array.isArray(action.data.titles) ? action.data.titles : [action.data.title];
+    for (const title of titles) {
+      await supabase.from("tasks").update({ completed: true }).eq("user_id", session.user.id).ilike("title", `%${title}%`).eq("date", today);
+    }
+    return `Task${titles.length > 1 ? "s" : ""} completed ✓`;
+  }
+
+  if (action.type === "task_delete" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    await supabase.from("tasks").delete().eq("user_id", session.user.id).ilike("title", `%${action.data.title}%`);
+    return `Task deleted ✓`;
+  }
+
+  if (action.type === "steps_log" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    await supabase.from("step_entries").upsert({
+      id: Math.random().toString(36).slice(2),
+      user_id: session.user.id,
+      date: today,
+      count: action.data.steps || action.data.count || 0,
+      timestamp: Date.now(),
+    });
+    return `Steps logged: ${action.data.steps || action.data.count} ✓`;
+  }
+
+  if (action.type === "settings_update" && action.data) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Not logged in");
+    await supabase.from("user_settings").update(action.data).eq("user_id", session.user.id);
+    return `Settings updated ✓`;
   }
 
   if (action.type === "workout_plan" && action.data) {
