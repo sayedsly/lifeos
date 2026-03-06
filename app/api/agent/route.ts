@@ -167,13 +167,24 @@ Keep responses concise (under 150 words), warm, specific to their data. Use thei
     const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn\'t process that.";
 
     // Parse action if present
-    const actionIdx2 = raw.lastIndexOf("ACTION:{"); const actionMatch = actionIdx2 >= 0 ? [null, raw.slice(actionIdx2 + 7)] : null;
     let action = null;
     let text = raw;
-    if (actionMatch) {
-      try { action = JSON.parse(actionMatch[1]); } catch {}
-      const actionIdx = raw.lastIndexOf("ACTION:{"); text = actionIdx >= 0 ? raw.slice(0, actionIdx).trim() : raw.trim();
+    const actionMarker = "ACTION:";
+    const markerIdx = raw.lastIndexOf(actionMarker);
+    if (markerIdx >= 0) {
+      const jsonStr = raw.slice(markerIdx + actionMarker.length).trim();
+      try {
+        // Find matching braces
+        let depth = 0, end = -1;
+        for (let i = 0; i < jsonStr.length; i++) {
+          if (jsonStr[i] === "{") depth++;
+          else if (jsonStr[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
+        }
+        if (end >= 0) action = JSON.parse(jsonStr.slice(0, end + 1));
+      } catch (e) { console.error("Action parse error:", e); }
+      text = raw.slice(0, markerIdx).trim();
     }
+    if (!text) text = raw;
 
     // Rough cost estimate: ~500 input tokens + ~200 output tokens per call
     const estimatedCostCents = Math.round((500 * 0.075 + 200 * 0.30) / 1000 * 100) / 100;

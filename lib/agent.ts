@@ -23,11 +23,11 @@ export async function runAgent(message: string): Promise<AgentResult> {
     body: JSON.stringify({ userId: session.user.id, accessToken: session.access_token, message }),
   });
 
-  if (res.status === 429) {
-    throw new Error("RATE_LIMITED");
-  }
-  if (!res.ok) throw new Error("Agent request failed");
-  return res.json();
+  if (res.status === 429) throw new Error("RATE_LIMITED");
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error || "Agent request failed");
+  if (!data.text) throw new Error("Empty response from AI");
+  return data;
 }
 
 export async function executeAgentAction(action: AgentAction): Promise<string> {

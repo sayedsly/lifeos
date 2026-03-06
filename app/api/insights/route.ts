@@ -124,31 +124,25 @@ Tasks:
 - Completed: ${completedTasks}/${totalTasks} tasks
 `;
 
-    // Call Claude
-    const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 600,
-        system: `You are a personal life coach inside a habit tracking app called LifeOS. You analyze the user's weekly data and give concise, honest, motivating insights. Be direct and specific — reference their actual numbers. Highlight what's working, what needs work, and give 1-2 concrete actionable tips. Keep it under 200 words. Use a warm but no-nonsense tone. Format with short paragraphs, no bullet points, no headers.`,
-        messages: [{ role: "user", content: `Here is my week:\n${weekSummary}\n\nGive me my weekly insight.` }],
-      }),
-    });
-
-    const claudeData = await claudeRes.json();
-    const insight = claudeData.content?.[0]?.text || "Unable to generate insight.";
-
-    // Log token usage
-    if (claudeData.usage?.output_tokens) {
-      await userSupabase.from("user_settings")
-        .update({ tokens_used: (s.tokens_used || 0) + claudeData.usage.output_tokens })
-        .eq("user_id", userId);
+    // Call Gemini Flash
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: weekSummary + "\n\nGive me my weekly insight." }] }],
+          systemInstruction: { parts: [{ text: "You are a personal life coach inside LifeOS. Analyze the user weekly data and give concise, honest, motivating insights. Be direct and specific — reference their actual numbers. Highlight what is working, what needs work, and give 1-2 concrete actionable tips. Keep it under 200 words. Warm but no-nonsense tone. Short paragraphs, no bullet points, no headers." }] },
+          generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
+        }),
+      }
+    );
+    const geminiData = await geminiRes.json();
+    if (!geminiData.candidates?.[0]) {
+      console.error("Gemini insights error:", JSON.stringify(geminiData));
+      return NextResponse.json({ error: "Gemini error: " + (geminiData.error?.message || "no candidates") }, { status: 500 });
     }
+    const insight = geminiData.candidates[0].content.parts[0].text;
 
     return NextResponse.json({ insight, generatedAt: new Date().toISOString() });
   } catch (e: any) {
