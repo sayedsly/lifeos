@@ -4,6 +4,7 @@ import { useLifeStore } from "@/store/useLifeStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import MomentumCard from "@/components/momentum/MomentumCard";
 import ActivityRings from "@/components/momentum/ActivityRings";
+import InsightsCard from "@/components/momentum/InsightsCard";
 import HydrationCard from "@/components/momentum/HydrationCard";
 import SleepCard from "@/components/momentum/SleepCard";
 import StepsCard from "@/components/momentum/StepsCard";
@@ -212,6 +213,7 @@ export default function HomePage() {
         {homeWidgets.sleepChart && <SleepHistory />}
 
         {/* Share */}
+        <InsightsCard name={settings?.name} />
         {momentum && <ShareCard score={momentum.score} breakdown={momentum.breakdown as any} name={settings?.name || "You"} />}
 
       </div>
