@@ -144,11 +144,11 @@ export default function VoiceOverlay() {
   };
 
   const handleAgentFollowUp = () => {
-    setIsFollowUp(true);
+    setIsFollowUp(true); // set FIRST so overlay doesnt close
+    setMode("listening");
     setAgentResult(null);
     resetForFollowUp();
-    setMode("listening");
-    start(); // must be synchronous on iOS
+    start();
   };
 
   const handleAddExample = async () => {
@@ -182,7 +182,7 @@ export default function VoiceOverlay() {
 
   // ── AGENT RESPONSE ──
   // Follow-up listening state - keep overlay open
-  if (isFollowUp && (state === "idle" || state === "recording" || state === "processing")) {
+  if (isFollowUp && state !== "confirming") {
     return (
       <div style={sheet} >
         <div style={card} onClick={e => e.stopPropagation()}>
