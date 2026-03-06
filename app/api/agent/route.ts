@@ -156,8 +156,7 @@ Keep responses concise (under 150 words), warm, specific to their data. Use thei
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `${dataContext}\n\nUser says: "${message}"` }] }],
-          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + "\n\nUser says: " + message }] }],
           generationConfig: { maxOutputTokens: 500, temperature: 0.7 },
         }),
       }

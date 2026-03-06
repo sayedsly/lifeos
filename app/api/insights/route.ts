@@ -131,8 +131,7 @@ Tasks:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: weekSummary + "\n\nGive me my weekly insight." }] }],
-          systemInstruction: { parts: [{ text: "You are a personal life coach inside LifeOS. Analyze the user weekly data and give concise, honest, motivating insights. Be direct and specific — reference their actual numbers. Highlight what is working, what needs work, and give 1-2 concrete actionable tips. Keep it under 200 words. Warm but no-nonsense tone. Short paragraphs, no bullet points, no headers." }] },
+          contents: [{ role: "user", parts: [{ text: "You are a personal life coach inside LifeOS. Give concise honest motivating weekly insights, under 200 words, short paragraphs, no bullets, reference actual numbers.\n\n" + weekSummary + "\n\nGive me my weekly insight." }] }],
           generationConfig: { maxOutputTokens: 400, temperature: 0.7 },
         }),
       }
