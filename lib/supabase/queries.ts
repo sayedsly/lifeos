@@ -375,3 +375,35 @@ export async function saveVoiceExamples(examples: string[]) {
   const userId = await getUserId();
   await supabase.from("user_settings").update({ voice_examples: examples }).eq("user_id", userId);
 }
+
+// ── Body Weight ──────────────────────────────────────────────
+export async function getBodyWeightHistory(days = 30) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+  const from = format(subDays(new Date(), days), "yyyy-MM-dd");
+  const { data } = await supabase
+    .from("body_weight_entries")
+    .select("*")
+    .eq("user_id", user.id)
+    .gte("date", from)
+    .order("date", { ascending: true });
+  return data || [];
+}
+
+export async function logBodyWeight(weight: number, unit: string = "lbs", note: string = "") {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not logged in");
+  const today = format(new Date(), "yyyy-MM-dd");
+  const { error } = await supabase
+    .from("body_weight_entries")
+    .upsert({
+      id: `weight-${user.id}-${today}`,
+      user_id: user.id,
+      date: today,
+      weight,
+      unit,
+      note,
+      created_at: Date.now(),
+    }, { onConflict: "user_id,date" });
+  if (error) throw error;
+}

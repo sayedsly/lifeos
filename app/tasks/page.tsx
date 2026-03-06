@@ -36,7 +36,10 @@ export default function TasksPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from("tasks").delete().eq("id", id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from("tasks").delete().eq("id", id).eq("user_id", user.id);
+    if (error) console.error("Delete error:", error);
     await computeMomentum(today);
     load();
   };

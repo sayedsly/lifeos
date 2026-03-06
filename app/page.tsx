@@ -11,9 +11,12 @@ import SleepLogModal from "@/components/momentum/SleepLogModal";
 import HydrationHistory from "@/components/momentum/HydrationHistory";
 import SleepHistory from "@/components/momentum/SleepHistory";
 import StreakCard from "@/components/momentum/StreakCard";
+import CalorieBudgetCard from "@/components/momentum/CalorieBudgetCard";
+import BodyWeightCard from "@/components/momentum/BodyWeightCard";
+import ShareCard from "@/components/momentum/ShareCard";
 import Onboarding from "@/components/Onboarding";
 import {
-  getMomentumForDate, getHydrationForDate, getSleepForDate,
+  getMomentumForDate, getHydrationForDate, getSleepForDate, getNutritionTotals,
   getSettings, addHydrationEntry, getLast7DaysMomentum,
   getStepsForDate, getCurrentStreak,
 } from "@/lib/supabase/queries";
@@ -36,19 +39,21 @@ export default function HomePage() {
   const [sleepModalOpen, setSleepModalOpen] = useState(false);
   const [trend, setTrend] = useState<MomentumSnapshot[]>([]);
   const [streak, setStreak] = useState(0);
+  const [caloriesToday, setCaloriesToday] = useState(0);
   const [ready, setReady] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [settings, setSettings] = useState<any>(null);
 
   const loadAll = async () => {
     try {
-      const [s, h, sl, stepCount, trendData, streakCount, prevMomentum] = await Promise.all([
+      const [s, h, sl, stepCount, trendData, streakCount, prevMomentum, nutritionTotals] = await Promise.all([
         getSettings(),
         getHydrationForDate(today()),
         getSleepForDate(today()),
         getStepsForDate(today()),
         getLast7DaysMomentum(),
         getCurrentStreak(),
+        getNutritionTotals(today()),
         getMomentumForDate(format(subDays(new Date(), 1), "yyyy-MM-dd")),
       ]);
       setSettings(s);
@@ -60,6 +65,7 @@ export default function HomePage() {
       setSteps(stepCount);
       setTrend(trendData);
       setStreak(streakCount);
+      setCaloriesToday(nutritionTotals?.calories || 0);
       if (!s.name || s.name === "You") setShowOnboarding(true);
       refreshMomentum();
       if (prevMomentum && momentum) setDelta(momentum.score - prevMomentum.score);
@@ -143,6 +149,12 @@ export default function HomePage() {
       <SleepCard sleep={sleep} goal={sleepGoal} onLog={() => setSleepModalOpen(true)} />
       {showSleepChart && <SleepHistory />}
       <StepsCard current={steps} goal={stepGoal} onUpdate={refreshSteps} />
+
+      <CalorieBudgetCard consumed={caloriesToday} goal={settings?.macroTargets?.calories || 2000} />
+
+      <BodyWeightCard />
+
+      {momentum && <ShareCard score={momentum.score} breakdown={momentum.breakdown as any} name={settings?.name || "You"} />}
       {sleepModalOpen && <SleepLogModal onClose={() => setSleepModalOpen(false)} onSave={loadAll} />}
     </div>
   );

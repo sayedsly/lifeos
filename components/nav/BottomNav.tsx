@@ -10,11 +10,12 @@ const ALL_MODULES = [
   { key: "friends", label: "Friends", href: "/friends" },
   { key: "workout", label: "Work", href: "/workout" },
   { key: "finance", label: "Finance", href: "/finance" },
+  { key: "recap", label: "Recap", href: "/recap" },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const [navConfig, setNavConfig] = useState(["nutrition", "tasks", "friends"]);
+  const [navConfig, setNavConfig] = useState(["nutrition", "workout", "recap"]);
 
   useEffect(() => {
     getSettings().then(s => {
