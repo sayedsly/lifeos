@@ -289,12 +289,12 @@ export async function getCurrentStreak(): Promise<number> {
 export async function getRecurringTasks(): Promise<RecurringTask[]> {
   const userId = await getUserId();
   const { data } = await supabase.from("recurring_tasks").select("*").eq("user_id", userId).order("created_at");
-  return (data || []).map(r => ({ id: r.id, title: r.title, priority: r.priority as 1|2|3, createdAt: r.created_at }));
+  return (data || []).map(r => ({ id: r.id, title: r.title, priority: r.priority as 1|2|3, frequency: (r.frequency || 'daily') as 'daily'|'weekdays'|'weekly'|'monthly', createdAt: r.created_at }));
 }
 
 export async function addRecurringTask(task: RecurringTask) {
   const userId = await getUserId();
-  await supabase.from("recurring_tasks").insert({ id: task.id, user_id: userId, title: task.title, priority: task.priority, created_at: task.createdAt });
+  await supabase.from("recurring_tasks").insert({ id: task.id, user_id: userId, title: task.title, priority: task.priority, frequency: task.frequency || 'daily', created_at: task.createdAt });
 }
 
 export async function deleteRecurringTask(id: string) {
@@ -307,8 +307,18 @@ export async function seedRecurringTasksForToday(date: string) {
   if (recurring.length === 0) return;
   const { data: existing } = await supabase.from("tasks").select("title").eq("user_id", userId).eq("date", date);
   const existingTitles = new Set((existing || []).map(t => t.title));
+  const d = new Date(date + "T12:00:00");
+  const dow = d.getDay(); // 0=Sun, 1=Mon...5=Fri, 6=Sat
+  const dom = d.getDate();
+  const shouldRun = (r: RecurringTask) => {
+    if (r.frequency === "daily") return true;
+    if (r.frequency === "weekdays") return dow >= 1 && dow <= 5;
+    if (r.frequency === "weekly") return dow === 1; // Mondays
+    if (r.frequency === "monthly") return dom === 1; // 1st of month
+    return true;
+  };
   const toInsert = recurring
-    .filter(r => !existingTitles.has(r.title))
+    .filter(r => !existingTitles.has(r.title) && shouldRun(r))
     .map(r => ({ id: `${r.id}-${date}`, user_id: userId, title: r.title, priority: r.priority, completed: false, date, created_at: Date.now() }));
   if (toInsert.length > 0) await supabase.from("tasks").insert(toInsert);
 }

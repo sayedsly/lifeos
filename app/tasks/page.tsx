@@ -7,6 +7,19 @@ import TaskItem from "@/components/tasks/TaskItem";
 import type { Task, RecurringTask } from "@/types";
 import { format } from "date-fns";
 
+const PRIORITY_CONFIG = [
+  { val: 1, label: "High", color: "#ef4444", bg: "#fee2e2" },
+  { val: 2, label: "Med", color: "#f59e0b", bg: "#fef3c7" },
+  { val: 3, label: "Low", color: "#9ca3af", bg: "#f3f4f6" },
+] as const;
+
+const FREQ_OPTIONS = [
+  { val: "daily", label: "Daily", emoji: "📅" },
+  { val: "weekdays", label: "Weekdays", emoji: "💼" },
+  { val: "weekly", label: "Weekly", emoji: "📆" },
+  { val: "monthly", label: "Monthly", emoji: "🗓️" },
+] as const;
+
 export default function TasksPage() {
   const today = format(new Date(), "yyyy-MM-dd");
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -15,8 +28,11 @@ export default function TasksPage() {
   const [newTask, setNewTask] = useState("");
   const [newPriority, setNewPriority] = useState<1|2|3>(2);
   const [newRecurring, setNewRecurring] = useState("");
+  const [newRecurringPriority, setNewRecurringPriority] = useState<1|2|3>(2);
+  const [newFrequency, setNewFrequency] = useState<"daily"|"weekdays"|"weekly"|"monthly">("daily");
   const [saving, setSaving] = useState(false);
   const [showRecurring, setShowRecurring] = useState(false);
+  const [addingRecurring, setAddingRecurring] = useState(false);
 
   const load = async () => {
     await seedRecurringTasksForToday(today);
@@ -61,8 +77,8 @@ export default function TasksPage() {
   const handleAddRecurring = async () => {
     if (!newRecurring.trim()) return;
     setSaving(true);
-    await addRecurringTask({ id: Math.random().toString(36).slice(2), title: newRecurring.trim(), priority: newPriority, createdAt: Date.now() });
-    setNewRecurring("");
+    await addRecurringTask({ id: Math.random().toString(36).slice(2), title: newRecurring.trim(), priority: newRecurringPriority, frequency: newFrequency, createdAt: Date.now() });
+    setNewRecurring(""); setAddingRecurring(false);
     setSaving(false);
     load();
   };
@@ -74,7 +90,6 @@ export default function TasksPage() {
 
   const completed = tasks.filter(t => t.completed).length;
   const pct = tasks.length > 0 ? Math.round((completed / tasks.length) * 100) : 0;
-  const priorityColor = (p: number) => p === 1 ? "#ef4444" : p === 2 ? "#f59e0b" : "#9ca3af";
 
   if (loading) return (
     <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -100,39 +115,68 @@ export default function TasksPage() {
           <div style={{ height: "6px", background: "rgba(99,102,241,0.2)", borderRadius: "999px", overflow: "hidden" }}>
             <div style={{ width: `${pct}%`, height: "100%", background: "#6366f1", borderRadius: "999px", transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
           </div>
+          <p style={{ fontSize: "10px", color: "#6366f1", fontWeight: 600, marginTop: "6px" }}>
+            {pct === 100 ? "🎉 All done!" : `${tasks.length - completed} remaining`}
+          </p>
         </div>
       </div>
 
-      {/* Task list */}
+      {/* Priority filter chips */}
+      <div style={{ display: "flex", gap: "6px" }}>
+        {PRIORITY_CONFIG.map(p => {
+          const count = tasks.filter(t => t.priority === p.val && !t.completed).length;
+          if (count === 0) return null;
+          return (
+            <div key={p.val} style={{ padding: "5px 12px", borderRadius: "999px", background: p.bg, display: "flex", alignItems: "center", gap: "5px" }}>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: p.color }} />
+              <p style={{ fontSize: "10px", fontWeight: 700, color: p.color }}>{count} {p.label}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Task list - sorted by priority */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        {tasks.map(task => (
+        {[...tasks].sort((a, b) => {
+          if (a.completed !== b.completed) return a.completed ? 1 : -1;
+          return a.priority - b.priority;
+        }).map(task => (
           <TaskItem key={task.id} task={task} onToggle={handleToggle} onDelete={handleDelete} onEdit={handleEdit} />
         ))}
         {tasks.length === 0 && (
           <div style={{ background: "white", borderRadius: "20px", padding: "32px 20px", textAlign: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
             <p style={{ fontSize: "28px", marginBottom: "8px" }}>✅</p>
             <p style={{ fontSize: "15px", fontWeight: 700, color: "#374151" }}>No tasks yet</p>
-            <p style={{ fontSize: "12px", color: "#9ca3af", fontWeight: 600, marginTop: "4px" }}>Add a task below to get started</p>
+            <p style={{ fontSize: "12px", color: "#9ca3af", fontWeight: 600, marginTop: "4px" }}>Add a task below</p>
           </div>
         )}
       </div>
 
       {/* Add task */}
-      <div style={{ display: "flex", gap: "8px" }}>
-        <div style={{ flex: 1, background: "white", borderRadius: "16px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: "6px" }}>
-          <div style={{ display: "flex", gap: "2px", padding: "0 4px" }}>
-            {([1,2,3] as const).map(p => (
-              <button key={p} onClick={() => setNewPriority(p)}
-                style={{ width: 10, height: 10, borderRadius: "50%", border: "none", cursor: "pointer", background: newPriority === p ? priorityColor(p) : "#e5e7eb" }} />
-            ))}
-          </div>
+      <div style={{ background: "white", borderRadius: "20px", padding: "14px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", gap: "10px" }}>
+        {/* Priority picker */}
+        <div style={{ display: "flex", gap: "6px" }}>
+          <p style={{ fontSize: "10px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.12em", alignSelf: "center", marginRight: "4px" }}>Priority</p>
+          {PRIORITY_CONFIG.map(p => (
+            <button key={p.val} onClick={() => setNewPriority(p.val)}
+              style={{ flex: 1, padding: "7px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "11px", fontWeight: 700,
+                background: newPriority === p.val ? p.bg : "#f7f8fc",
+                color: newPriority === p.val ? p.color : "#9ca3af",
+                outline: newPriority === p.val ? `2px solid ${p.color}` : "none",
+                transition: "all 0.15s",
+              }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: "8px" }}>
           <input value={newTask} onChange={e => setNewTask(e.target.value)}
             onKeyDown={e => e.key === "Enter" && handleAdd()}
             placeholder="Add a task..."
-            style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: "14px", fontWeight: 600, color: "#111118", padding: "10px 4px", fontFamily: "inherit" }} />
+            style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "11px 14px", fontSize: "14px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
+          <button onClick={handleAdd} disabled={saving || !newTask.trim()}
+            style={{ width: 46, height: 46, background: newTask.trim() ? "#111118" : "#e5e7eb", border: "none", borderRadius: "14px", color: newTask.trim() ? "white" : "#9ca3af", fontSize: "22px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
         </div>
-        <button className="btn-press" onClick={handleAdd} disabled={saving || !newTask.trim()}
-          style={{ width: 46, height: 46, background: newTask.trim() ? "#111118" : "#e5e7eb", border: "none", borderRadius: "14px", color: newTask.trim() ? "white" : "#9ca3af", fontSize: "22px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>+</button>
       </div>
 
       {/* Recurring tasks */}
@@ -148,22 +192,77 @@ export default function TasksPage() {
 
       {showRecurring && (
         <div style={{ background: "white", borderRadius: "20px", padding: "16px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", gap: "8px" }}>
-          {recurring.map(r => (
-            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: "1px solid #f7f8fc" }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: priorityColor(r.priority), flexShrink: 0 }} />
-              <p style={{ flex: 1, fontSize: "13px", fontWeight: 600, color: "#374151" }}>{r.title}</p>
-              <button onClick={() => handleDeleteRecurring(r.id)}
-                style={{ width: 28, height: 28, borderRadius: "8px", background: "#fef2f2", border: "none", cursor: "pointer", fontSize: "16px", color: "#ef4444" }}>×</button>
+          {recurring.map(r => {
+            const pc = PRIORITY_CONFIG.find(p => p.val === r.priority)!;
+            const fc = FREQ_OPTIONS.find(f => f.val === r.frequency)!;
+            return (
+              <div key={r.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: "1px solid #f7f8fc" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: pc.color, flexShrink: 0 }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#374151" }}>{r.title}</p>
+                  <div style={{ display: "flex", gap: "4px", marginTop: "3px" }}>
+                    <span style={{ fontSize: "9px", fontWeight: 700, color: pc.color, background: pc.bg, padding: "1px 6px", borderRadius: "4px" }}>{pc.label}</span>
+                    <span style={{ fontSize: "9px", fontWeight: 700, color: "#6b7280", background: "#f1f5f9", padding: "1px 6px", borderRadius: "4px" }}>{fc?.emoji} {fc?.label}</span>
+                  </div>
+                </div>
+                <button onClick={() => handleDeleteRecurring(r.id)}
+                  style={{ width: 28, height: 28, borderRadius: "8px", background: "#fef2f2", border: "none", cursor: "pointer", fontSize: "16px", color: "#ef4444" }}>×</button>
+              </div>
+            );
+          })}
+
+          {!addingRecurring ? (
+            <button onClick={() => setAddingRecurring(true)}
+              style={{ padding: "11px", borderRadius: "12px", background: "#f7f8fc", border: "1.5px dashed #e5e7eb", color: "#6b7280", fontWeight: 700, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+              + Add Recurring Task
+            </button>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "12px", background: "#f7f8fc", borderRadius: "14px" }}>
+              <input value={newRecurring} onChange={e => setNewRecurring(e.target.value)}
+                placeholder="Task name..."
+                autoFocus
+                style={{ background: "white", border: "1.5px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
+              
+              <div style={{ display: "flex", gap: "5px" }}>
+                <p style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", alignSelf: "center", marginRight: "2px" }}>Priority</p>
+                {PRIORITY_CONFIG.map(p => (
+                  <button key={p.val} onClick={() => setNewRecurringPriority(p.val)}
+                    style={{ flex: 1, padding: "6px", borderRadius: "8px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "10px", fontWeight: 700,
+                      background: newRecurringPriority === p.val ? p.bg : "white",
+                      color: newRecurringPriority === p.val ? p.color : "#9ca3af",
+                      outline: newRecurringPriority === p.val ? `1.5px solid ${p.color}` : "none",
+                    }}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: "5px" }}>
+                <p style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", alignSelf: "center", marginRight: "2px" }}>Repeat</p>
+                {FREQ_OPTIONS.map(f => (
+                  <button key={f.val} onClick={() => setNewFrequency(f.val)}
+                    style={{ flex: 1, padding: "6px 4px", borderRadius: "8px", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: "9px", fontWeight: 700,
+                      background: newFrequency === f.val ? "#e0e7ff" : "white",
+                      color: newFrequency === f.val ? "#4338ca" : "#9ca3af",
+                      outline: newFrequency === f.val ? "1.5px solid #6366f1" : "none",
+                    }}>
+                    {f.emoji}<br/>{f.label}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={handleAddRecurring} disabled={saving || !newRecurring.trim()}
+                  style={{ flex: 1, padding: "10px", background: "#111118", border: "none", borderRadius: "10px", color: "white", fontWeight: 700, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+                  Add
+                </button>
+                <button onClick={() => { setAddingRecurring(false); setNewRecurring(""); }}
+                  style={{ padding: "10px 14px", background: "white", border: "none", borderRadius: "10px", color: "#6b7280", fontWeight: 700, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+                  Cancel
+                </button>
+              </div>
             </div>
-          ))}
-          <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
-            <input value={newRecurring} onChange={e => setNewRecurring(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleAddRecurring()}
-              placeholder="New recurring task..."
-              style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "10px 14px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
-            <button className="btn-press" onClick={handleAddRecurring} disabled={saving || !newRecurring.trim()}
-              style={{ padding: "10px 16px", background: "#111118", border: "none", borderRadius: "12px", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>Add</button>
-          </div>
+          )}
         </div>
       )}
     </div>
