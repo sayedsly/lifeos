@@ -144,11 +144,7 @@ export default function VoiceOverlay() {
   };
 
   const handleAgentFollowUp = () => {
-    setIsFollowUp(true);
-    setAgentResult(null);
-    resetForFollowUp();
-    setMode("listening");
-    // Don't call start() here - user taps mic inside follow-up screen
+    setIsFollowUp(true); // just show the follow-up screen, nothing else
   };
 
   const handleAddExample = async () => {
@@ -182,7 +178,7 @@ export default function VoiceOverlay() {
 
   // ── AGENT RESPONSE ──
   // Follow-up listening state - keep overlay open
-  if (isFollowUp && state !== "confirming") {
+  if (isFollowUp) {
     return (
       <div style={sheet} >
         <div style={card} onClick={e => e.stopPropagation()}>
@@ -196,7 +192,7 @@ export default function VoiceOverlay() {
             {state === "recording" && [90, 68, 48].map((size, i) => (
               <div key={i} style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: size, height: size, borderRadius: "50%", background: `rgba(99,102,241,${0.08 - i * 0.02})`, animation: `pulse ${1.2 + i * 0.2}s ease-in-out infinite` }} />
             ))}
-            <div onClick={() => { if (state === "idle") start(); else if (state === "recording") stop(); }}
+            <div onClick={() => { setAgentResult(null); resetForFollowUp(); setMode("listening"); start(); }}
               style={{ width: 64, height: 64, borderRadius: "50%", background: state === "processing" ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "linear-gradient(135deg,#667eea,#764ba2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", zIndex: 1, cursor: "pointer", position: "relative" }}>
               {state === "processing" ? "✨" : state === "recording" ? "⏹️" : "🎙️"}
             </div>
