@@ -161,19 +161,8 @@ Rules:
 - When user wants to split money across existing goals, return ACTION finance_split
 - When user wants to CREATE a new finance goal, return ACTION finance_goal_add with: {"goals":[{"name":"Emergency Fund","targetAmount":5000,"category":"savings"}]}
 - When user mentions their weight, return ACTION body_weight with: {"weight":165,"unit":"lbs"}
-- NEVER ask the user for more information or clarification. Instead:
-- If you need more info, end with: "Try again with: [exact example of what to say]"
-- If the request is ambiguous, make your best guess and state your assumption
-- Always give a complete, actionable response
-- NEVER leave a sentence unfinished
+- NEVER leave a response mid-sentence. Always complete your thought.
 - Keep responses under 200 words, warm, specific to their actual data numbers.`;
-
-    // Load AI memory for this user
-    const { data: memoryRow } = await userSupabase.from("ai_memory").select("facts").eq("user_id", userId).single();
-    const userMemory: string[] = memoryRow?.facts || [];
-    const memoryContext = userMemory.length > 0
-      ? "\n\nWHAT YOU KNOW ABOUT THIS USER (from past conversations):\n" + userMemory.map((f: string) => `- ${f}`).join("\n")
-      : "";
 
     // Build conversation history context
     const historyContext = history && history.length > 0
@@ -186,7 +175,7 @@ Rules:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + memoryContext + historyContext + "\n\nUser says: " + message }] }],
+          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message }] }],
           generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
         }),
       }
@@ -221,23 +210,6 @@ Rules:
       .update({ cost_cents: ((usageRow?.cost_cents || 0) + estimatedCostCents) })
       .eq("user_id", userId)
       .eq("date", today);
-
-    // Extract memory facts from this conversation asynchronously
-    try {
-      const memRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: `Extract 0-3 short facts about the user from this exchange that would be useful to remember long-term (preferences, goals, body stats, habits). Return ONLY a JSON array of strings, nothing else. If nothing worth remembering, return [].\n\nUser: ${message}\nAssistant: ${text}` }] }], generationConfig: { maxOutputTokens: 200 } }) }
-      );
-      const memData = await memRes.json();
-      const memText = memData.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-      const newFacts: string[] = JSON.parse(memText.replace(/\`\`\`json|\`\`\`/g, "").trim());
-      if (newFacts.length > 0) {
-        const existing: string[] = memoryRow?.facts || [];
-        const merged = [...existing, ...newFacts].slice(-50); // keep last 50 facts
-        await userSupabase.from("ai_memory").upsert({ id: userId, user_id: userId, facts: merged, last_updated: new Date().toISOString() });
-      }
-    } catch (e) { console.error("Memory save error:", e); }
 
     return NextResponse.json({ text, action, generatedAt: new Date().toISOString(), remainingCalls: DAILY_LIMIT - currentCount - 1 });
   } catch (e: any) {

@@ -46,21 +46,15 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  // Convert to LA time since users set times in their local timezone
-  const laTime = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Los_Angeles",
-    hour: "2-digit", minute: "2-digit", hour12: false
-  }).format(now);
-  const [laH, laM] = laTime.replace(/\u202f/g, " ").trim().split(":").map(s => parseInt(s));
-  const currentTime = `${String(laH).padStart(2, "0")}:${String(laM).padStart(2, "0")}`;
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(now);
+  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const today = format(now, "yyyy-MM-dd");
 
   // Get all notification prefs
   const { data: prefs } = await supabase
     .from("notification_preferences")
     .select("*");
 
-  if (!prefs || prefs.length === 0) return NextResponse.json({ sent: 0, debug: "no prefs found in DB" });
+  if (!prefs || prefs.length === 0) return NextResponse.json({ sent: 0 });
 
   let sent = 0;
   for (const pref of prefs) {
@@ -72,7 +66,7 @@ export async function GET(req: NextRequest) {
       const [h, m] = t.split(":").map(Number);
       const [ch, cm] = currentTime.split(":").map(Number);
       const diff = Math.abs((h * 60 + m) - (ch * 60 + cm));
-      return diff <= 8; // within 8 mins of schedule
+      return diff <= 7; // within 7 mins of schedule
     });
 
     if (!shouldSend) continue;
@@ -120,5 +114,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent });
+  return NextResponse.json({ sent, time: currentTime });
 }

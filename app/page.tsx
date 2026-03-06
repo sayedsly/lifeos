@@ -1,5 +1,4 @@
 "use client";
-import ProactiveNudges from "@/components/ProactiveNudges";
 import { useEffect, useState } from "react";
 import { useLifeStore } from "@/store/useLifeStore";
 import { useAuthStore } from "@/store/useAuthStore";
