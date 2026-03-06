@@ -57,6 +57,9 @@ export default function VoiceOverlay() {
   const [agentSaving, setAgentSaving] = useState(false);
   const [rateLimited, setRateLimited] = useState(false);
   const [agentDone, setAgentDone] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState<string>("");
+  const [showVoicePicker, setShowVoicePicker] = useState(false);
+  const [availableVoices, setAvailableVoices] = useState<{name:string;lang:string}[]>([]);
   const hasStarted = useRef(false);
   useEffect(() => {
     const load = () => {
