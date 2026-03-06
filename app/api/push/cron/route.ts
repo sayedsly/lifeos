@@ -46,8 +46,14 @@ export async function GET(req: NextRequest) {
   }
 
   const now = new Date();
-  const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const today = format(now, "yyyy-MM-dd");
+  // Convert to LA time since users set times in their local timezone
+  const laTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).format(now);
+  const [laH, laM] = laTime.replace(/\u202f/g, " ").trim().split(":").map(s => parseInt(s));
+  const currentTime = `${String(laH).padStart(2, "0")}:${String(laM).padStart(2, "0")}`;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Los_Angeles" }).format(now);
 
   // Get all notification prefs
   const { data: prefs } = await supabase
@@ -116,5 +122,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ sent, time: currentTime, prefs: prefs.length, debug: debugInfo });
+  return NextResponse.json({ sent, time: currentTime, utc: new Date().toISOString(), prefs: prefs.length, debug: debugInfo });
 }
