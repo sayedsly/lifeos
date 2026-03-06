@@ -1,4 +1,6 @@
 "use client";
+import AdminDashboard from "@/components/AdminDashboard";
+import { supabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 import { getSettings, updateSettings } from "@/lib/supabase/queries";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -11,6 +13,12 @@ import type { UserSettings } from "@/types";
 const DEFAULT_WEIGHTS = { nutrition: 30, workout: 20, sleep: 15, tasks: 15, finance: 10, steps: 10 };
 
 export default function SettingsPage() {
+  const [isOwner, setIsOwner] = useState(false);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user.id === process.env.NEXT_PUBLIC_OWNER_USER_ID) setIsOwner(true);
+    });
+  }, []);
   const [s, setS] = useState<UserSettings | null>(null);
   const [saved, setSaved] = useState(false);
   const [weights, setWeights] = useState(DEFAULT_WEIGHTS);
@@ -215,6 +223,11 @@ export default function SettingsPage() {
       }}>
         Sign Out
       </button>
+          {isOwner && (
+        <div style={{ marginTop: "8px" }}>
+          <AdminDashboard />
+        </div>
+      )}
     </div>
   );
 }

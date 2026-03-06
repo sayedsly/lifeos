@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useLifeStore } from "@/store/useLifeStore";
+import { executeAgentAction, speak } from "@/lib/agent";
 import { useVoice } from "@/hooks/useVoice";
 import { getVoiceExamples, saveVoiceExamples } from "@/lib/supabase/queries";
 
@@ -43,13 +44,16 @@ const card: React.CSSProperties = {
 
 export default function VoiceOverlay() {
   const { isVoiceOpen, setVoiceOpen } = useLifeStore();
-  const { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText } = useVoice();
+  const { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText, agentResult, setAgentResult } = useVoice();
   const [textInput, setTextInput] = useState("");
   const [customExamples, setCustomExamples] = useState<string[]>([]);
   const [showAddExample, setShowAddExample] = useState(false);
   const [newExample, setNewExample] = useState("");
   const [editedIntent, setEditedIntent] = useState<Record<string, any>>({});
   const [mode, setMode] = useState<"listening" | "quickadd">("listening");
+  const [agentSaving, setAgentSaving] = useState(false);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [agentDone, setAgentDone] = useState(false);
   const hasStarted = useRef(false);
 
   useEffect(() => {
@@ -98,6 +102,28 @@ export default function VoiceOverlay() {
     setTimeout(() => start(), 100);
   };
 
+  const handleAgentConfirm = async () => {
+    if (!agentResult?.action || agentResult.action.type === "none") {
+      setVoiceOpen(false);
+      return;
+    }
+    setAgentSaving(true);
+    try {
+      await executeAgentAction(agentResult.action);
+      setAgentDone(true);
+      speak("Done! " + agentResult.text.slice(0, 80));
+      setTimeout(() => { setVoiceOpen(false); setAgentResult(null); setAgentDone(false); window.location.reload(); }, 2000);
+    } catch (e: any) { console.error(e); }
+    setAgentSaving(false);
+  };
+
+  const handleAgentReject = () => {
+    setAgentResult(null);
+    cancel();
+    setMode("listening");
+    setTimeout(() => start(), 100);
+  };
+
   const handleAddExample = async () => {
     if (!newExample.trim()) return;
     const updated = [...customExamples, newExample.trim()];
@@ -126,6 +152,73 @@ export default function VoiceOverlay() {
   };
 
   const meta = intent ? (DOMAIN_META[intent.domain] || { emoji: "📝", color: "#374151", bg: "#f3f4f6" }) : null;
+
+  // ── AGENT RESPONSE ──
+  if (state === "confirming" && agentResult) {
+    const hasAction = agentResult.action && agentResult.action.type !== "none";
+    return (
+      <div style={sheet}>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+            <div style={{ width: 40, height: 40, borderRadius: "12px", background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>✨</div>
+            <div>
+              <p style={{ fontSize: "10px", fontWeight: 800, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.15em" }}>AI Response</p>
+              {transcript && <p style={{ fontSize: "11px", color: "#9ca3af", fontStyle: "italic" }}>"{transcript}"</p>}
+            </div>
+            <button onClick={() => speak(agentResult.text)}
+              style={{ marginLeft: "auto", width: 36, height: 36, borderRadius: "10px", background: "#f0fdf4", border: "none", cursor: "pointer", fontSize: "16px" }}>
+              🔊
+            </button>
+          </div>
+
+          <div style={{ background: "#f7f8fc", borderRadius: "18px", padding: "16px", marginBottom: "14px" }}>
+            <p style={{ fontSize: "14px", color: "#374151", fontWeight: 600, lineHeight: 1.6 }}>{agentResult.text}</p>
+          </div>
+
+          {hasAction && agentResult.action && (
+            <div style={{ background: "linear-gradient(135deg,#e0e7ff,#ede9fe)", borderRadius: "14px", padding: "12px 14px", marginBottom: "14px" }}>
+              <p style={{ fontSize: "10px", fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>Proposed Action</p>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: "#3730a3" }}>
+                {agentResult.action.type === "nutrition_log" && `Log: ${agentResult.action.data?.food} (${agentResult.action.data?.calories} cal)`}
+                {agentResult.action.type === "macro_targets" && `Update macros: ${agentResult.action.data?.calories} kcal, ${agentResult.action.data?.protein}g protein`}
+                {agentResult.action.type === "finance_split" && `Split money across ${agentResult.action.data?.splits?.length} goals`}
+                {agentResult.action.type === "workout_plan" && `Save workout: ${agentResult.action.data?.name} (${agentResult.action.data?.exercises?.length} exercises)`}
+              </p>
+            </div>
+          )}
+
+          {agentDone ? (
+            <div style={{ textAlign: "center", padding: "12px 0" }}>
+              <p style={{ fontSize: "28px", marginBottom: "6px" }}>✅</p>
+              <p style={{ fontSize: "14px", fontWeight: 700, color: "#22c55e" }}>Done!</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button onClick={handleAgentReject}
+                style={{ padding: "13px 14px", borderRadius: "14px", background: "#fef2f2", border: "none", color: "#ef4444", fontWeight: 700, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+                🔄 Redo
+              </button>
+              <button onClick={close}
+                style={{ padding: "13px 14px", borderRadius: "14px", background: "#f1f5f9", border: "none", color: "#6b7280", fontWeight: 700, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+                ✕
+              </button>
+              {hasAction ? (
+                <button onClick={handleAgentConfirm} disabled={agentSaving}
+                  style={{ flex: 1, padding: "13px", borderRadius: "14px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+                  {agentSaving ? "Saving..." : "Apply ✓"}
+                </button>
+              ) : (
+                <button onClick={() => { speak(agentResult.text); }}
+                  style={{ flex: 1, padding: "13px", borderRadius: "14px", background: "#f0fdf4", border: "none", color: "#16a34a", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+                  🔊 Read Aloud
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ── LISTENING ──
   if (state === "recording" || (mode === "listening" && state === "idle")) return (
@@ -310,6 +403,28 @@ export default function VoiceOverlay() {
         <div style={{ width: 64, height: 64, borderRadius: "20px", background: "linear-gradient(135deg,#86efac,#22c55e)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", boxShadow: "0 6px 24px rgba(34,197,94,0.3)" }}>✓</div>
         <p style={{ fontSize: "20px", fontWeight: 800, color: "#111118" }}>Logged!</p>
         <p style={{ fontSize: "13px", color: "#9ca3af", fontWeight: 600 }}>Nice work 💪</p>
+      </div>
+    </div>
+  );
+
+  // ── RATE LIMITED ──
+  if (state === "error" && error === "RATE_LIMITED") return (
+    <div style={sheet}>
+      <div style={card}>
+        <div style={{ textAlign: "center", padding: "16px 0" }}>
+          <p style={{ fontSize: "48px", marginBottom: "12px" }}>😅</p>
+          <p style={{ fontSize: "18px", fontWeight: 900, color: "#111118", marginBottom: "8px" }}>Cmon bro, chill</p>
+          <p style={{ fontSize: "13px", color: "#6b7280", fontWeight: 600, lineHeight: 1.6, marginBottom: "20px" }}>
+            You have hit the daily AI limit (30 calls). Hit up Sayed to get your limit reset 🙏
+          </p>
+          <div style={{ background: "linear-gradient(135deg,#fef3c7,#fde68a)", borderRadius: "16px", padding: "14px", marginBottom: "16px" }}>
+            <p style={{ fontSize: "12px", fontWeight: 700, color: "#92400e" }}>Resets automatically at midnight 🌙</p>
+          </div>
+          <button onClick={close}
+            style={{ width: "100%", padding: "14px", background: "#111118", border: "none", borderRadius: "14px", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+            OK got it
+          </button>
+        </div>
       </div>
     </div>
   );
