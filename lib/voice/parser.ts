@@ -43,14 +43,18 @@ function distanceToSteps(text: string): number | null {
 // Fuzzy food match — handles "eggs", "egg", "coffee", "banana" etc
 function fuzzyFoodMatch(text: string): typeof FOOD_DB {
   const t = text.toLowerCase();
+  const words = t.split(/\s+/).filter(w => w.length >= 4);
   return FOOD_DB.filter(food => {
     const name = food.name.toLowerCase();
-    // exact
+    // exact full name match
     if (t.includes(name)) return true;
-    // singular/plural
-    if (t.includes(name + "s") || t.includes(name.replace(/s$/, ""))) return true;
-    // partial match for longer names
-    if (name.length > 4 && (t.includes(name.slice(0, -1)) || name.includes(t.split(" ").find(w => w.length > 3) || ""))) return true;
+    // singular/plural - only for names 4+ chars
+    if (name.length >= 4) {
+      if (t.includes(name + "s")) return true;
+      if (name.endsWith("s") && t.includes(name.slice(0, -1))) return true;
+    }
+    // word-level match - only match if a word from transcript (4+ chars) exactly starts the food name
+    if (words.some(w => name.startsWith(w) && w.length >= 4)) return true;
     return false;
   });
 }
@@ -150,6 +154,8 @@ function tryParseNutrition(text: string): ParsedIntent | null {
 
   if (!isFood && matched.length === 0) return null;
   if (matched.length === 0) return null;
+  // Require explicit food trigger OR a strong match
+  if (!isFood && matched.length < 2) return null;
 
   const items = matched.map(food => {
     const beforeFood = t.slice(0, Math.max(0, t.search(new RegExp(food.name.slice(0, 4), "i"))));
@@ -173,7 +179,7 @@ function tryParseNutrition(text: string): ParsedIntent | null {
 
   return {
     domain: "nutrition_add",
-    confidence: 0.85,
+    confidence: isFood ? 0.85 : 0.65,
     data: { food: foodLabel, amount: items.map(m => m.food.serving).join(", "), meal: mealTime, ...totals, source: "voice" },
     rawTranscript: text,
     requiresConfirmation: true,

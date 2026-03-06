@@ -29,15 +29,15 @@ export default function SleepHistory() {
   const max = Math.max(...data.map(d => d.hours), data[0]?.goal || 8, 9);
 
   const qualityColor = (q: number) => {
-    if (q === 0) return "#27272a";
-    if (q <= 2) return "#ef4444";
-    if (q <= 3) return "#f59e0b";
-    return "#34d399";
+    if (q === 0) return "#e5e7eb";
+    if (q <= 2) return "#fca5a5";
+    if (q <= 3) return "#fde68a";
+    return "#86efac";
   };
 
   return (
-    <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px" }}>
-      <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "16px" }}>Sleep — 7 Days</p>
+    <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}>
+      <p style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "16px" }}>😴 Sleep — 7 Days</p>
       <div style={{ display: "flex", alignItems: "flex-end", gap: "6px", height: "80px" }}>
         {data.map((d, i) => {
           const isToday = i === data.length - 1;
@@ -47,22 +47,21 @@ export default function SleepHistory() {
           return (
             <div key={d.date} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: "6px", height: "100%", justifyContent: "flex-end" }}>
               <div style={{ width: "100%", position: "relative", height: "100%", display: "flex", alignItems: "flex-end" }}>
-                <div style={{ position: "absolute", bottom: `${goalPct * 100}%`, left: 0, right: 0, borderTop: "1px dashed #3f3f46" }} />
-                <div style={{ width: "100%", height: `${Math.max(pct * 100, 4)}%`, borderRadius: "4px 4px 2px 2px", background: d.hours === 0 ? "#27272a" : hit ? qualityColor(d.quality) : isToday ? "white" : "#3f3f46", transition: "height 500ms ease-out" }} />
+                <div style={{ position: "absolute", bottom: `${goalPct * 100}%`, left: 0, right: 0, borderTop: "1.5px dashed #d1d5db" }} />
+                <div style={{ width: "100%", height: `${Math.max(pct * 100, 4)}%`, borderRadius: "4px 4px 2px 2px", background: d.hours === 0 ? "#f1f5f9" : hit ? qualityColor(d.quality) : isToday ? "#111118" : "#e5e7eb", transition: "height 500ms ease-out" }} />
               </div>
-              <p style={{ fontSize: "9px", color: isToday ? "white" : "#52525b", fontWeight: isToday ? 700 : 400 }}>
+              <p style={{ fontSize: "9px", color: isToday ? "#111118" : "#9ca3af", fontWeight: isToday ? 700 : 600 }}>
                 {isToday ? "Today" : format(new Date(d.date + "T12:00:00"), "EEE")}
               </p>
             </div>
           );
         })}
       </div>
-      {/* Quality legend */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px", flexWrap: "wrap" as const }}>
-        {[{ label: "Great (4-5)", color: "#34d399" }, { label: "OK (3)", color: "#f59e0b" }, { label: "Poor (1-2)", color: "#ef4444" }].map(({ label, color }) => (
+      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "12px", flexWrap: "wrap" }}>
+        {[{ label: "Great", color: "#86efac" }, { label: "OK", color: "#fde68a" }, { label: "Poor", color: "#fca5a5" }].map(({ label, color }) => (
           <div key={label} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-            <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: color }} />
-            <p style={{ fontSize: "10px", color: "#52525b" }}>{label}</p>
+            <div style={{ width: 8, height: 8, borderRadius: 2, background: color }} />
+            <p style={{ fontSize: "10px", color: "#9ca3af", fontWeight: 600 }}>{label}</p>
           </div>
         ))}
       </div>

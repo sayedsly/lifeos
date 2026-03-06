@@ -3,7 +3,6 @@ import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import AuthProvider from "@/components/AuthProvider";
 import BottomNav from "@/components/nav/BottomNav";
-import MicButton from "@/components/nav/MicButton";
 import VoiceOverlay from "@/components/voice/VoiceOverlay";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -25,7 +24,6 @@ function Shell() {
   return (
     <>
       <VoiceOverlay />
-      <MicButton />
       <BottomNav />
     </>
   );

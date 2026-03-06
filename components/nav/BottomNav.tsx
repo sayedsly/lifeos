@@ -47,13 +47,13 @@ export default function BottomNav() {
         <button
           onClick={() => setVoiceOpen(true)}
           style={{
-            flex: "0 0 auto", width: 52, height: 52,
+            flex: "0 0 auto", width: 54, height: 54,
             background: "linear-gradient(135deg, #667eea, #764ba2)",
             border: "none", borderRadius: 18,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 22, cursor: "pointer",
+            fontSize: 24, cursor: "pointer",
             boxShadow: "0 4px 20px rgba(102,126,234,0.4)",
-            marginBottom: -2, marginLeft: 4, marginRight: 4,
+            margin: "0 2px",
             transition: "transform 0.2s cubic-bezier(0.34,1.56,0.64,1)",
           }}
           className="btn-press"
