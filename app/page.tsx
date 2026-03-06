@@ -65,7 +65,7 @@ export default function HomePage() {
       setSteps(stepCount);
       setTrend(trendData);
       setStreak(streakCount);
-      setCaloriesToday(nutritionTotals?.calories || 0);
+      setCaloriesToday((nutritionTotals as any)?.calories || 0);
       if (!s.name || s.name === "You") setShowOnboarding(true);
       refreshMomentum();
       if (prevMomentum && momentum) setDelta(momentum.score - prevMomentum.score);
