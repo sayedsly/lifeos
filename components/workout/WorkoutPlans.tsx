@@ -48,7 +48,7 @@ export default function WorkoutPlans({ onStartPlan }: Props) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>My Plans</p>
+        <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase" }}>My Plans</p>
         <button onClick={() => setCreating(!creating)}
           style={{ padding: "8px 16px", borderRadius: "10px", background: creating ? "#27272a" : "white", border: "none", color: creating ? "#71717a" : "black", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>
           {creating ? "Cancel" : "+ New Plan"}
@@ -57,9 +57,9 @@ export default function WorkoutPlans({ onStartPlan }: Props) {
 
       {/* Create plan form */}
       {creating && (
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+        <div style={{ background: "white", border: "none", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
           <input placeholder="Plan name (e.g. My Pull Day)" value={name} onChange={e => setName(e.target.value)}
-            style={{ width: "100%", background: "#27272a", border: "none", borderRadius: "12px", padding: "12px 16px", color: "white", fontSize: "14px", outline: "none", boxSizing: "border-box" as const }} />
+            style={{ width: "100%", background: "#f7f8fc", border: "none", borderRadius: "12px", padding: "12px 16px", color: "#111118", fontSize: "14px", outline: "none", boxSizing: "border-box" as const }} />
 
           {/* Type selector */}
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" as const }}>
@@ -74,11 +74,11 @@ export default function WorkoutPlans({ onStartPlan }: Props) {
           {/* Suggested exercises */}
           {suggestions.length > 0 && (
             <div>
-              <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Quick Add</p>
+              <p style={{ fontSize: "9px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "8px" }}>Quick Add</p>
               <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px" }}>
                 {suggestions.map(s => (
                   <button key={s} onClick={() => addExercise(s)}
-                    style={{ padding: "6px 10px", borderRadius: "8px", background: exercises.find(e => e.name === s) ? "#27272a" : "#18181b", border: "1px solid #27272a", color: exercises.find(e => e.name === s) ? "#52525b" : "#a1a1aa", fontSize: "11px", cursor: "pointer" }}>
+                    style={{ padding: "6px 10px", borderRadius: "8px", background: exercises.find(e => e.name === s) ? "#27272a" : "#18181b", border: "none", color: exercises.find(e => e.name === s) ? "#52525b" : "#a1a1aa", fontSize: "11px", cursor: "pointer" }}>
                     {exercises.find(e => e.name === s) ? "✓ " : ""}{s}
                   </button>
                 ))}
@@ -89,13 +89,13 @@ export default function WorkoutPlans({ onStartPlan }: Props) {
           {/* Exercise list with sets/reps/weight */}
           {exercises.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em" }}>Exercises</p>
+              <p style={{ fontSize: "9px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em" }}>Exercises</p>
               {exercises.map((ex, i) => (
-                <div key={ex.name} style={{ background: "#27272a", borderRadius: "14px", padding: "12px 14px" }}>
+                <div key={ex.name} style={{ background: "#f7f8fc", borderRadius: "14px", padding: "12px 14px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                    <p style={{ color: "white", fontSize: "13px", fontWeight: 600 }}>{ex.name}</p>
+                    <p style={{ color: "#111118", fontSize: "13px", fontWeight: 600 }}>{ex.name}</p>
                     <button onClick={() => setExercises(prev => prev.filter((_, idx) => idx !== i))}
-                      style={{ background: "none", border: "none", color: "#52525b", fontSize: "16px", cursor: "pointer" }}>×</button>
+                      style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "16px", cursor: "pointer" }}>×</button>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                     {[
@@ -104,9 +104,9 @@ export default function WorkoutPlans({ onStartPlan }: Props) {
                       { label: "Weight (lbs)", key: "weight" as const },
                     ].map(({ label, key }) => (
                       <div key={key}>
-                        <p style={{ fontSize: "8px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>{label}</p>
+                        <p style={{ fontSize: "8px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>{label}</p>
                         <input type="number" value={ex[key]} onChange={e => updateExercise(i, { [key]: parseFloat(e.target.value) || 0 })}
-                          style={{ width: "100%", background: "#18181b", border: "none", borderRadius: "8px", padding: "8px", color: "white", fontSize: "14px", fontWeight: 600, textAlign: "center" as const, outline: "none", boxSizing: "border-box" as const }} />
+                          style={{ width: "100%", background: "white", border: "none", borderRadius: "8px", padding: "8px", color: "#111118", fontSize: "14px", fontWeight: 600, textAlign: "center" as const, outline: "none", boxSizing: "border-box" as const }} />
                       </div>
                     ))}
                   </div>
@@ -124,31 +124,31 @@ export default function WorkoutPlans({ onStartPlan }: Props) {
 
       {/* Plans list */}
       {plans.length === 0 && !creating ? (
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "32px 20px", textAlign: "center" }}>
-          <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No plans yet</p>
-          <p style={{ color: "#3f3f46", fontSize: "11px", marginTop: "8px" }}>Create a plan to pre-load exercises and track progression</p>
+        <div style={{ background: "white", border: "none", borderRadius: "24px", padding: "32px 20px", textAlign: "center", boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}>
+          <p style={{ color: "#9ca3af", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No plans yet</p>
+          <p style={{ color: "#9ca3af", fontSize: "11px", marginTop: "8px" }}>Create a plan to pre-load exercises and track progression</p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           {plans.map(plan => (
-            <div key={plan.id} style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "20px", padding: "16px 20px" }}>
+            <div key={plan.id} style={{ background: "white", border: "none", borderRadius: "20px", padding: "16px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
                 <div>
-                  <p style={{ color: "white", fontSize: "15px", fontWeight: 700 }}>{plan.name}</p>
-                  <p style={{ color: "#52525b", fontSize: "11px", marginTop: "2px" }}>{plan.type} · {plan.exercises.length} exercises</p>
+                  <p style={{ color: "#111118", fontSize: "15px", fontWeight: 700 }}>{plan.name}</p>
+                  <p style={{ color: "#9ca3af", fontSize: "11px", marginTop: "2px" }}>{plan.type} · {plan.exercises.length} exercises</p>
                 </div>
                 <button onClick={() => deleteWorkoutPlan(plan.id).then(load)}
-                  style={{ background: "none", border: "none", color: "#3f3f46", fontSize: "18px", cursor: "pointer", padding: "2px 6px" }}>×</button>
+                  style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "18px", cursor: "pointer", padding: "2px 6px" }}>×</button>
               </div>
               <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px", marginBottom: "12px" }}>
                 {plan.exercises.map(ex => (
-                  <span key={ex.name} style={{ padding: "4px 10px", borderRadius: "8px", background: "#27272a", color: "#a1a1aa", fontSize: "11px" }}>
+                  <span key={ex.name} style={{ padding: "4px 10px", borderRadius: "8px", background: "#f7f8fc", color: "#6b7280", fontSize: "11px" }}>
                     {ex.name} {ex.weight > 0 ? `${ex.weight}lbs` : ""}
                   </span>
                 ))}
               </div>
               <button onClick={() => onStartPlan(plan)}
-                style={{ width: "100%", padding: "12px", borderRadius: "12px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
+                style={{ width: "100%", padding: "12px", borderRadius: "12px", background: "#111118", border: "none", color: "white", fontWeight: 700, fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
                 Start This Plan →
               </button>
             </div>
