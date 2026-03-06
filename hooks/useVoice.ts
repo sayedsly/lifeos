@@ -100,7 +100,8 @@ export function useVoice() {
   };
 
   const submitText = (text: string) => { gotResultRef.current = true; setTranscript(text); processText(text); };
+  const resetForFollowUp = () => { setState("idle"); setIntent(null); setTranscript(""); setError(""); gotResultRef.current = false; };
   const stop = () => recognitionRef.current?.stop();
 
-  return { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText, agentResult, setAgentResult };
+  return { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText, agentResult, setAgentResult, resetForFollowUp };
 }

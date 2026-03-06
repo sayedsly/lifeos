@@ -48,7 +48,7 @@ const card: React.CSSProperties = {
 
 export default function VoiceOverlay() {
   const { isVoiceOpen, setVoiceOpen } = useLifeStore();
-  const { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText, agentResult, setAgentResult } = useVoice();
+  const { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText, agentResult, setAgentResult, resetForFollowUp } = useVoice();
   const [textInput, setTextInput] = useState("");
   const [customExamples, setCustomExamples] = useState<string[]>([]);
   const [showAddExample, setShowAddExample] = useState(false);
@@ -144,8 +144,9 @@ export default function VoiceOverlay() {
 
   const handleAgentFollowUp = () => {
     setAgentResult(null);
+    resetForFollowUp();
     setMode("listening");
-    setTimeout(() => start(), 50);
+    setTimeout(() => start(), 100);
   };
 
   const handleAddExample = async () => {
@@ -283,10 +284,10 @@ export default function VoiceOverlay() {
           {!agentDone && (
             <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
               <input value={followUpText} onChange={e => setFollowUpText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); submitText(t); } }}
+                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); resetForFollowUp(); submitText(t); } }}
                 placeholder="Ask a follow-up..."
                 style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
-              <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); submitText(t); } else { handleAgentFollowUp(); } }}
+              <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); resetForFollowUp(); submitText(t); } else { handleAgentFollowUp(); } }}
                 style={{ width: 46, height: 46, borderRadius: "12px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontSize: "20px", cursor: "pointer", flexShrink: 0 }}>
                 {followUpText.trim() ? "→" : "🎙️"}
               </button>

@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       const [h, m] = t.split(":").map(Number);
       const [ch, cm] = currentTime.split(":").map(Number);
       const diff = Math.abs((h * 60 + m) - (ch * 60 + cm));
-      return diff <= 7; // within 7 mins of schedule
+      return diff <= 8; // within 8 mins of schedule
     });
 
     if (!shouldSend) continue;
