@@ -182,7 +182,7 @@ export default function VoiceOverlay() {
     const hasAction = agentResult.action && agentResult.action.type !== "none";
     return (
       <div style={sheet} onClick={close}>
-        <div style={card}>
+        <div style={card} onClick={e => e.stopPropagation()}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
             <div style={{ width: 40, height: 40, borderRadius: "12px", background: "linear-gradient(135deg,#e0e7ff,#c7d2fe)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>✨</div>
             <div>
