@@ -75,9 +75,18 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
   const lookupBarcode = async (barcode: string) => {
     setBarcodeLoading(true);
     try {
-      const res = await fetch("https://world.openfoodfacts.org/api/v0/product/" + barcode + ".json");
-      const data = await res.json();
-      if (data.status !== 1 || !data.product) throw new Error("Product not found");
+      // Try both OFF and UPC lookup
+      const urls = [
+        "https://world.openfoodfacts.org/api/v0/product/" + barcode + ".json",
+        "https://world.openfoodfacts.org/api/v0/product/" + barcode.replace(/^0+/, "") + ".json",
+      ];
+      let data: any = null;
+      for (const url of urls) {
+        const res = await fetch(url);
+        const d = await res.json();
+        if (d.status === 1 && d.product?.product_name) { data = d; break; }
+      }
+      if (!data) throw new Error("Product not found");
       const p = data.product;
       const n = p.nutriments || {};
       const food: FoodResult = {
@@ -106,7 +115,13 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      // Try rear camera first, fall back to any camera
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setScanning(true);
@@ -134,7 +149,7 @@ export default function QuickAddBar({ onAdd, defaultMeal = "snack" }: Props) {
   const handleQueryChange = (val: string) => {
     setQuery(val);
     clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => search(val), 500);
+    searchTimeout.current = setTimeout(() => search(val), 200);
   };
 
   const selectFood = (food: FoodResult) => {
