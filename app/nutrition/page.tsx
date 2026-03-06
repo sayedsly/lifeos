@@ -50,7 +50,7 @@ export default function NutritionPage() {
   const handleDelete = async (id: string) => {
     await deleteNutritionEntry(id);
     await computeMomentum(selectedDate);
-    await refresh();
+    refresh();
     refreshMomentum();
   };
 
@@ -58,123 +58,122 @@ export default function NutritionPage() {
     await addNutritionEntry({
       ...entry,
       id: Math.random().toString(36).slice(2),
-      date: selectedDate,
+      date: today,
       timestamp: Date.now(),
     });
-    await computeMomentum(selectedDate);
-    await refresh();
+    await computeMomentum(today);
+    refresh(today);
     refreshMomentum();
   };
 
-  const days = Array.from({ length: 7 }, (_, i) => format(subDays(new Date(), 6 - i), "yyyy-MM-dd"));
-
-  const tabBtn = (t: typeof tab, label: string) => (
-    <button onClick={() => setTab(t)} style={{
-      flex: 1, padding: "10px", borderRadius: "12px", border: "none", cursor: "pointer",
-      fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const,
-      background: tab === t ? "white" : "transparent", color: tab === t ? "black" : "#52525b",
-    }}>{label}</button>
-  );
-
-  // Guess meal based on time of day
-  const guessMeal = (): MealCategory => {
-    const h = new Date().getHours();
-    if (h < 10) return "breakfast";
-    if (h < 13) return "lunch";
-    if (h < 17) return "snack";
-    if (h < 21) return "dinner";
-    return "snack";
-  };
+  const calPct = Math.min(totals.calories / targets.calories, 1);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div style={{ paddingTop: "8px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "14px", paddingTop: "16px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "0 4px" }}>
         <div>
-          <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Nutrition</p>
-          <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>
-            {selectedDate === today ? "Today" : format(new Date(selectedDate + "T12:00:00"), "MMM d")}
-          </p>
+          <p style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "4px" }}>Today</p>
+          <p style={{ fontSize: "26px", fontWeight: 900, color: "#111118", letterSpacing: "-0.5px" }}>Nutrition</p>
         </div>
-        <p style={{ color: "#52525b", fontSize: "22px", fontWeight: 700 }}>{Math.round(totals.calories)} <span style={{ fontSize: "12px" }}>kcal</span></p>
+        {selectedDate !== today && (
+          <button onClick={() => setSelectedDate(today)}
+            style={{ background: "#f1f5f9", border: "none", borderRadius: "12px", padding: "9px 14px", fontSize: "12px", fontWeight: 700, color: "#374151", cursor: "pointer", fontFamily: "inherit" }}>
+            Today
+          </button>
+        )}
       </div>
 
-      {/* Date picker */}
-      <div style={{ display: "flex", gap: "6px", overflowX: "auto" as const, paddingBottom: "4px" }}>
-        {days.map(d => {
-          const isSelected = d === selectedDate;
-          const isToday = d === today;
+      {/* Calorie summary ring card */}
+      <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}>
+        <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
+          {/* Ring */}
+          <div style={{ position: "relative", width: 90, height: 90, flexShrink: 0 }}>
+            <svg width="90" height="90" viewBox="0 0 90 90" style={{ transform: "rotate(-90deg)" }}>
+              <circle cx="45" cy="45" r="36" fill="none" stroke="#f1f5f9" strokeWidth="7" />
+              <circle cx="45" cy="45" r="36" fill="none"
+                stroke={calPct > 0.95 ? "#ef4444" : calPct > 0.8 ? "#f59e0b" : "#22c55e"}
+                strokeWidth="7"
+                strokeDasharray={`${2 * Math.PI * 36}`}
+                strokeDashoffset={`${2 * Math.PI * 36 * (1 - calPct)}`}
+                strokeLinecap="round"
+                style={{ transition: "stroke-dashoffset 0.6s cubic-bezier(0.34,1.56,0.64,1)" }}
+              />
+            </svg>
+            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+              <p style={{ fontSize: "16px", fontWeight: 900, color: "#111118", lineHeight: 1 }}>{Math.round(calPct * 100)}%</p>
+              <p style={{ fontSize: "8px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.1em" }}>goal</p>
+            </div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "34px", fontWeight: 900, color: "#111118", letterSpacing: "-2px", lineHeight: 1 }}>{totals.calories.toLocaleString()}</p>
+            <p style={{ fontSize: "12px", color: "#6b7280", fontWeight: 600, marginTop: "2px" }}>
+              of {targets.calories.toLocaleString()} kcal ·{" "}
+              <span style={{ color: "#22c55e", fontWeight: 700 }}>{Math.max(0, targets.calories - totals.calories)} left</span>
+            </p>
+          </div>
+        </div>
+        {/* Macro chips */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginTop: "16px" }}>
+          {[
+            { label: "Protein", val: totals.protein, target: targets.protein, color: "#f97316" },
+            { label: "Carbs", val: totals.carbs, target: targets.carbs, color: "#6366f1" },
+            { label: "Fat", val: totals.fat, target: targets.fat, color: "#f59e0b" },
+            { label: "Fiber", val: totals.fiber, target: targets.fiber, color: "#22c55e" },
+          ].map(({ label, val, target, color }) => (
+            <div key={label} style={{ background: "#f7f8fc", borderRadius: "14px", padding: "10px 6px", textAlign: "center" as const }}>
+              <p style={{ fontSize: "17px", fontWeight: 800, color, lineHeight: 1 }}>{Math.round(val)}</p>
+              <p style={{ fontSize: "9px", color: "#9ca3af", fontWeight: 600, marginTop: "1px" }}>/{target}g</p>
+              <p style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: "3px" }}>{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Date nav */}
+      <div style={{ display: "flex", gap: "6px", overflowX: "auto" as const, paddingBottom: "2px" }}>
+        {Array.from({ length: 7 }, (_, i) => {
+          const d = format(subDays(new Date(), i), "yyyy-MM-dd");
+          const label = i === 0 ? "Today" : i === 1 ? "Yesterday" : format(subDays(new Date(), i), "EEE d");
           return (
-            <button key={d} onClick={() => setSelectedDate(d)} style={{
-              flexShrink: 0, padding: "8px 14px", borderRadius: "12px", border: "none", cursor: "pointer",
-              background: isSelected ? "white" : "#18181b",
-              color: isSelected ? "black" : isToday ? "white" : "#52525b",
-              fontSize: "11px", fontWeight: 700,
-            }}>
-              {isToday ? "Today" : format(new Date(d + "T12:00:00"), "EEE d")}
+            <button key={d} onClick={() => setSelectedDate(d)}
+              style={{ flexShrink: 0, padding: "8px 14px", borderRadius: "999px", border: "none", fontFamily: "inherit", fontSize: "12px", fontWeight: 700, cursor: "pointer", background: selectedDate === d ? "#111118" : "white", color: selectedDate === d ? "white" : "#6b7280", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", transition: "all 0.15s" }}>
+              {label}
             </button>
           );
         })}
       </div>
 
-      <NutritionSummaryCard totals={totals} targets={targets} />
-
-      <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "4px" }}>
-        {tabBtn("log", "📋 Log")}
-        {tabBtn("add", "➕ Add")}
-        {tabBtn("history", "📊 History")}
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "3px", background: "white", borderRadius: "16px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+        {(["log", "add", "history"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ flex: 1, padding: "9px", borderRadius: "12px", border: "none", fontFamily: "inherit", fontSize: "12px", fontWeight: 700, cursor: "pointer", background: tab === t ? "#111118" : "transparent", color: tab === t ? "white" : "#9ca3af", transition: "all 0.15s" }}>
+            {t === "log" ? "📋 Log" : t === "add" ? "➕ Add" : "📊 History"}
+          </button>
+        ))}
       </div>
 
-      {tab === "log" && (
-        entries.length === 0 ? (
-          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
-            <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>Nothing logged yet</p>
-            <button onClick={() => setTab("add")} style={{ marginTop: "12px", padding: "10px 20px", borderRadius: "12px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>
-              Add Food →
-            </button>
-          </div>
-        ) : (
-          <FoodLogList entries={entries} onDelete={handleDelete} onQuickAdd={handleQuickAdd} />
-        )
-      )}
-
-      {tab === "add" && (
-        <QuickAddBar defaultMeal={guessMeal()} onAdd={async () => { await refresh(); setTab("log"); refreshMomentum(); }} />
-      )}
-
+      {tab === "log" && <FoodLogList entries={entries} onDelete={handleDelete} onQuickAdd={handleQuickAdd} />}
+      {tab === "add" && <QuickAddBar onAdd={() => { refresh(); refreshMomentum(); }} />}
       {tab === "history" && (
-        historyLoading ? (
-          <div style={{ padding: "40px", textAlign: "center" }}>
-            <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</p>
-          </div>
-        ) : (
-          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
-            {history.map((h, i) => {
-              const isToday = h.date === today;
-              const calPct = Math.min(h.totals.calories / targets.calories, 1);
-              const hit = calPct >= 0.8 && h.totals.protein >= targets.protein * 0.8;
-              return (
-                <div key={h.date} onClick={() => { setSelectedDate(h.date); setTab("log"); }}
-                  style={{ padding: "14px 20px", borderBottom: i < history.length - 1 ? "1px solid #27272a" : "none", cursor: "pointer", display: "flex", alignItems: "center", gap: "12px" }}>
-                  <div style={{ width: "8px", height: "8px", borderRadius: "2px", background: h.totals.calories === 0 ? "#27272a" : hit ? "#34d399" : "#f59e0b", flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ color: isToday ? "white" : "#a1a1aa", fontWeight: 600, fontSize: "13px" }}>
-                      {isToday ? "Today" : format(new Date(h.date + "T12:00:00"), "EEE, MMM d")}
-                    </p>
-                    <p style={{ color: "#52525b", fontSize: "10px", marginTop: "2px" }}>
-                      {h.totals.protein > 0 ? `${Math.round(h.totals.protein)}g protein · ${Math.round(h.totals.fiber || 0)}g fiber` : "Not logged"}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <p style={{ color: h.totals.calories === 0 ? "#3f3f46" : "white", fontSize: "14px", fontWeight: 700 }}>
-                      {h.totals.calories === 0 ? "—" : Math.round(h.totals.calories)}
-                    </p>
-                    <p style={{ color: "#52525b", fontSize: "10px" }}>kcal</p>
+        <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}>
+          {historyLoading ? (
+            <p style={{ color: "#9ca3af", fontSize: "12px", textAlign: "center" }}>Loading...</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {history.map(({ date, totals: t }) => (
+                <div key={date} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid #f1f5f9" }}>
+                  <p style={{ fontSize: "13px", fontWeight: 600, color: "#374151" }}>{format(new Date(date + "T00:00:00"), "EEE, MMM d")}</p>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#111118" }}>{t.calories} kcal</span>
+                    <span style={{ fontSize: "12px", color: "#9ca3af" }}>{Math.round(t.protein)}g P</span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

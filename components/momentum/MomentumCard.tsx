@@ -1,101 +1,61 @@
 "use client";
 import type { MomentumSnapshot } from "@/types";
-import { getWeakestLink } from "@/lib/momentum/engine";
 
-interface Props {
-  snapshot: MomentumSnapshot | null;
-  delta: number;
-}
+interface Props { momentum: MomentumSnapshot | null; delta: number; }
 
-const labels: Record<string, string> = {
-  nutrition: "Nutrition",
-  workout: "Workout",
-  sleep: "Sleep",
-  tasks: "Tasks",
-  finance: "Finance",
-  steps: "Steps",
-};
+const DOMAINS = [
+  { key: "nutrition", emoji: "🥗", label: "Nutrition", color: "#4ade80" },
+  { key: "workout", emoji: "💪", label: "Workout", color: "#ffffff" },
+  { key: "sleep", emoji: "😴", label: "Sleep", color: "#fbbf24" },
+  { key: "tasks", emoji: "✅", label: "Tasks", color: "#a78bfa" },
+  { key: "steps", emoji: "👟", label: "Steps", color: "#fbbf24" },
+  { key: "finance", emoji: "💰", label: "Finance", color: "#34d399" },
+];
 
-const maxPossible: Record<string, number> = {
-  nutrition: 30, workout: 20, sleep: 15,
-  tasks: 15, finance: 10, steps: 10,
-};
-
-export default function MomentumCard({ snapshot, delta }: Props) {
-  if (!snapshot) return (
-    <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-6 h-52 animate-pulse" />
-  );
-
-  const weakest = getWeakestLink(snapshot.breakdown);
+export default function MomentumCard({ momentum, delta }: Props) {
+  const score = momentum?.score ?? 0;
+  const breakdown = momentum?.breakdown ?? {} as any;
 
   return (
-    <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-6" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{
+      background: "#111118",
+      borderRadius: "28px",
+      padding: "22px",
+      position: "relative",
+      overflow: "hidden",
+      boxShadow: "0 8px 28px rgba(17,17,24,0.2)",
+    }}>
+      <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, background: "radial-gradient(circle, rgba(255,255,255,0.04), transparent 70%)", pointerEvents: "none" }} />
 
-      {/* Score row */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-        <div>
-          <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#71717a", textTransform: "uppercase", marginBottom: "8px" }}>
-            Momentum Score
-          </p>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: "8px" }}>
-            <p style={{ fontSize: "80px", fontWeight: 800, color: "white", lineHeight: 1, letterSpacing: "-2px" }}>
-              {snapshot.score}
-            </p>
-            <p style={{ fontSize: "28px", color: "#3f3f46", fontWeight: 300, marginBottom: "6px" }}>
-              /100
-            </p>
-          </div>
-        </div>
-        <div style={{ textAlign: "right", marginTop: "4px" }}>
-          <p style={{
-            fontSize: "22px",
-            fontWeight: 700,
-            color: delta > 0 ? "#34d399" : delta < 0 ? "#f87171" : "#52525b"
-          }}>
-            {delta > 0 ? "+" : ""}{delta}
-          </p>
-          <p style={{ fontSize: "9px", color: "#52525b", letterSpacing: "0.15em", textTransform: "uppercase", marginTop: "2px" }}>
-            vs yesterday
-          </p>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: "12px", marginBottom: "20px" }}>
+        <div style={{ fontSize: "72px", fontWeight: 900, color: "white", letterSpacing: "-4px", lineHeight: 1 }}>{score}</div>
+        <div style={{ paddingBottom: "8px" }}>
+          <p style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.15em", textTransform: "uppercase" }}>Momentum</p>
+          {delta !== 0 && (
+            <div style={{ marginTop: "4px", display: "inline-block", fontSize: "12px", fontWeight: 700, color: delta > 0 ? "#4ade80" : "#f87171", background: delta > 0 ? "rgba(74,222,128,0.12)" : "rgba(248,113,113,0.12)", padding: "2px 8px", borderRadius: "6px" }}>
+              {delta > 0 ? "+" : ""}{delta} from yesterday
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Breakdown bars */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-        {Object.entries(snapshot.breakdown).map(([key, val]) => {
-          const max = maxPossible[key];
-          const pct = Math.round((val / max) * 100);
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {DOMAINS.map(({ key, emoji, label, color }) => {
+          const val = (breakdown as any)[key] ?? 0;
+          const max = key === "nutrition" ? 30 : key === "workout" ? 20 : key === "sleep" ? 15 : key === "tasks" ? 15 : key === "steps" ? 10 : 10;
+          const pct = Math.min(val / max, 1);
           return (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.15em", color: "#52525b", textTransform: "uppercase", width: "64px", flexShrink: 0 }}>
-                {labels[key]}
-              </p>
-              <div style={{ flex: 1, height: "3px", background: "#27272a", borderRadius: "999px", overflow: "hidden" }}>
-                <div style={{
-                  width: `${pct}%`,
-                  height: "100%",
-                  background: "white",
-                  borderRadius: "999px",
-                  transition: "width 700ms ease-out"
-                }} />
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "13px", width: "20px", textAlign: "center" }}>{emoji}</span>
+              <span style={{ fontSize: "12px", fontWeight: 600, color: "rgba(255,255,255,0.45)", width: "64px" }}>{label}</span>
+              <div style={{ flex: 1, height: "3px", background: "rgba(255,255,255,0.07)", borderRadius: "999px", overflow: "hidden" }}>
+                <div style={{ width: `${pct * 100}%`, height: "100%", background: color, borderRadius: "999px", transition: "width 0.7s cubic-bezier(0.34,1.56,0.64,1)" }} />
               </div>
-              <p style={{ fontSize: "10px", color: "#52525b", width: "32px", textAlign: "right" }}>
-                {val}/{max}
-              </p>
+              <span style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255,255,255,0.2)", width: "36px", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{val}/{max}</span>
             </div>
           );
         })}
       </div>
-
-      {/* Weakest link */}
-      {weakest && (
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingTop: "4px", borderTop: "1px solid #27272a" }}>
-          <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#f87171", flexShrink: 0 }} />
-          <p style={{ fontSize: "9px", color: "#52525b", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-            Focus today: <span style={{ color: "#a1a1aa", fontWeight: 600 }}>{labels[weakest]}</span>
-          </p>
-        </div>
-      )}
     </div>
   );
 }

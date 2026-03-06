@@ -1,134 +1,60 @@
 "use client";
 import { useState } from "react";
-import { upsertSteps } from "@/lib/supabase/queries";
+import { supabase } from "@/lib/supabase/client";
 import { computeMomentum } from "@/lib/momentum/engine";
 import { format } from "date-fns";
 
-interface Props {
-  current: number;
-  goal: number;
-  onUpdate?: () => void;
-}
+interface Props { current: number; goal: number; onUpdate: () => void; }
 
 export default function StepsCard({ current, goal, onUpdate }: Props) {
-  const [input, setInput] = useState("");
   const [editing, setEditing] = useState(false);
-  const [customAdd, setCustomAdd] = useState("");
-  const [showCustomAdd, setShowCustomAdd] = useState(false);
-  const [showRemove, setShowRemove] = useState(false);
-  const [customRemove, setCustomRemove] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const pct = Math.min(Math.round((current / goal) * 100), 100);
-  const goalHit = current >= goal;
+  const [input, setInput] = useState(String(current));
+  const [saving, setSaving] = useState(false);
+  const pct = Math.min(current / goal, 1);
   const today = format(new Date(), "yyyy-MM-dd");
 
-  const save = async (count: number) => {
-    if (count < 0) count = 0;
-    setLoading(true);
-    await upsertSteps({ id: `steps-${today}`, date: today, count });
-    await computeMomentum(today);
-    setLoading(false);
-    onUpdate?.();
-  };
-
-  const handleSet = async () => {
-    const count = parseInt(input);
-    if (!isNaN(count)) await save(count);
+  const handleSave = async () => {
+    setSaving(true);
+    const count = parseInt(input) || 0;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await supabase.from("step_entries").upsert({ id: `steps-${user.id}-${today}`, user_id: user.id, date: today, count }, { onConflict: "user_id,date" });
+      await computeMomentum(today);
+      onUpdate();
+    }
+    setSaving(false);
     setEditing(false);
-    setInput("");
-  };
-
-  const handleQuickAdd = async (amount: number) => {
-    setLoading(true);
-    await save(current + amount);
-  };
-
-  const handleCustomAdd = async () => {
-    const amt = parseInt(customAdd);
-    if (amt > 0) { await save(current + amt); setCustomAdd(""); setShowCustomAdd(false); }
-  };
-
-  const handleCustomRemove = async () => {
-    const amt = parseInt(customRemove);
-    if (amt > 0) { await save(Math.max(0, current - amt)); setCustomRemove(""); setShowRemove(false); }
   };
 
   return (
-    <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    <div style={{ background: "white", borderRadius: "24px", padding: "20px", boxShadow: "0 2px 16px rgba(0,0,0,0.07)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
         <div>
-          <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "4px" }}>Steps</p>
-          {editing ? (
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <input autoFocus type="number" value={input} onChange={e => setInput(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleSet(); if (e.key === "Escape") { setEditing(false); setInput(""); } }}
-                placeholder={String(current)}
-                style={{ width: "120px", background: "#27272a", border: "none", borderRadius: "12px", padding: "8px 12px", color: "white", fontSize: "28px", fontWeight: 700, outline: "none" }} />
-              <button onClick={handleSet} disabled={loading} style={{ padding: "8px 16px", borderRadius: "10px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>Set</button>
-              <button onClick={() => { setEditing(false); setInput(""); }} style={{ padding: "8px 12px", borderRadius: "10px", background: "none", border: "1px solid #27272a", color: "#71717a", fontSize: "11px", cursor: "pointer" }}>Cancel</button>
-            </div>
-          ) : (
-            <button onClick={() => setEditing(true)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: "left" }}>
-              <p style={{ fontSize: "40px", fontWeight: 700, color: "white", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{current.toLocaleString()}</p>
-            </button>
-          )}
+          <p style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "6px" }}>👟 Steps</p>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "6px" }}>
+            <span style={{ fontSize: "36px", fontWeight: 900, color: "#111118", letterSpacing: "-2px", lineHeight: 1 }}>{current.toLocaleString()}</span>
+            <span style={{ fontSize: "16px", color: "#9ca3af", fontWeight: 600 }}>/ {goal.toLocaleString()}</span>
+          </div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "4px" }}>Goal</p>
-          <p style={{ fontSize: "14px", fontWeight: 600, color: "#52525b" }}>{goal.toLocaleString()}</p>
-        </div>
-      </div>
-
-      <div style={{ height: "3px", background: "#27272a", borderRadius: "999px" }}>
-        <div style={{ width: `${pct}%`, height: "100%", background: goalHit ? "#34d399" : "white", borderRadius: "999px", transition: "width 500ms ease-out" }} />
-      </div>
-
-      <p style={{ fontSize: "10px", color: goalHit ? "#34d399" : "#52525b", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase" }}>
-        {goalHit ? "Goal hit 🎉" : `${(goal - current).toLocaleString()} to go`}
-      </p>
-
-      {/* Quick add */}
-      {!editing && (
-        <div style={{ display: "flex", gap: "6px" }}>
-          {[1000, 2500, 5000].map(n => (
-            <button key={n} onClick={() => handleQuickAdd(n)} disabled={loading}
-              style={{ flex: 1, padding: "10px", borderRadius: "12px", background: "#27272a", border: "none", color: "#a1a1aa", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>
-              +{n >= 1000 ? `${n/1000}k` : n}
-            </button>
-          ))}
-          <button onClick={() => { setShowCustomAdd(!showCustomAdd); setShowRemove(false); }}
-            style={{ padding: "10px 14px", borderRadius: "12px", background: showCustomAdd ? "white" : "#27272a", border: "none", color: showCustomAdd ? "black" : "#a1a1aa", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
-            Custom
-          </button>
-        </div>
-      )}
-
-      {showCustomAdd && (
-        <div style={{ display: "flex", gap: "8px" }}>
-          <input autoFocus type="number" placeholder="Enter steps..." value={customAdd} onChange={e => setCustomAdd(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleCustomAdd()}
-            style={{ flex: 1, background: "#27272a", border: "none", borderRadius: "12px", padding: "10px 14px", color: "white", fontSize: "14px", outline: "none" }} />
-          <button onClick={handleCustomAdd} style={{ padding: "10px 16px", borderRadius: "12px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>Add</button>
-          <button onClick={() => { setShowCustomAdd(false); setCustomAdd(""); }}
-            style={{ padding: "10px 14px", borderRadius: "12px", background: "none", border: "1px solid #27272a", color: "#71717a", fontSize: "12px", cursor: "pointer" }}>✕</button>
-        </div>
-      )}
-
-      {/* Remove */}
-      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-        <button onClick={() => { setShowRemove(!showRemove); setShowCustomAdd(false); }}
-          style={{ background: "none", border: "none", color: "#3f3f46", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer" }}>
-          {showRemove ? "Cancel" : "− Remove"}
+        <button className="btn-press" onClick={() => { setInput(String(current)); setEditing(!editing); }}
+          style={{ background: editing ? "#111118" : "#f1f5f9", border: "none", borderRadius: "12px", padding: "9px 16px", fontSize: "12px", fontWeight: 700, color: editing ? "white" : "#374151", cursor: "pointer" }}>
+          {editing ? "Cancel" : "Update"}
         </button>
       </div>
 
-      {showRemove && (
-        <div style={{ display: "flex", gap: "8px" }}>
-          <input type="number" placeholder="Steps to remove..." value={customRemove} onChange={e => setCustomRemove(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleCustomRemove()}
-            style={{ flex: 1, background: "#27272a", border: "none", borderRadius: "12px", padding: "10px 14px", color: "white", fontSize: "14px", outline: "none" }} />
-          <button onClick={handleCustomRemove} style={{ padding: "10px 16px", borderRadius: "12px", background: "#ef4444", border: "none", color: "white", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>Remove</button>
+      <div style={{ height: "6px", background: "#f1f5f9", borderRadius: "999px", overflow: "hidden", marginBottom: "8px" }}>
+        <div style={{ width: `${pct * 100}%`, height: "100%", background: "linear-gradient(90deg, #fde68a, #f59e0b)", borderRadius: "999px", transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
+      </div>
+      <p style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 600 }}>{Math.max(0, goal - current).toLocaleString()} steps to go</p>
+
+      {editing && (
+        <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
+          <input type="number" value={input} onChange={e => setInput(e.target.value)} placeholder="Enter steps"
+            style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "12px 16px", fontSize: "16px", fontWeight: 700, color: "#111118", outline: "none", fontFamily: "inherit" }} />
+          <button className="btn-press" onClick={handleSave} disabled={saving}
+            style={{ padding: "12px 20px", background: "#111118", border: "none", borderRadius: "12px", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+            {saving ? "..." : "Save"}
+          </button>
         </div>
       )}
     </div>

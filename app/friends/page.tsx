@@ -227,13 +227,13 @@ export default function FriendsPage() {
   const medals = ["🥇", "🥈", "🥉"];
 
   const tabBtn = (t: typeof tab, label: string, count?: number) => (
-    <button onClick={() => setTab(t)} style={{ flex: 1, padding: "10px", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: tab === t ? "white" : "transparent", color: tab === t ? "black" : "#52525b" }}>
+    <button onClick={() => setTab(t)} style={{ flex: 1, padding: "10px", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: tab === t ? "white" : "transparent", color: tab === t ? "black" : "#9ca3af" }}>
       {label}{count ? ` (${count})` : ""}
     </button>
   );
 
   const periodBtn = (p: Period, label: string) => (
-    <button onClick={() => setPeriod(p)} style={{ flex: 1, padding: "8px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: period === p ? "#27272a" : "transparent", color: period === p ? "white" : "#52525b" }}>
+    <button onClick={() => setPeriod(p)} style={{ flex: 1, padding: "8px", borderRadius: "10px", border: "none", cursor: "pointer", fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: period === p ? "#27272a" : "transparent", color: period === p ? "white" : "#9ca3af" }}>
       {label}
     </button>
   );
@@ -241,29 +241,29 @@ export default function FriendsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       <div style={{ paddingTop: "8px" }}>
-        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Social</p>
-        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>Friends</p>
+        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase" }}>Social</p>
+        <p style={{ fontSize: "20px", fontWeight: 700, color: "#111118", marginTop: "4px" }}>Friends</p>
       </div>
 
       {pending.length > 0 && (
-        <div style={{ background: "#18181b", border: "1px solid #f59e0b", borderRadius: "24px", overflow: "hidden" }}>
+        <div style={{ background: "white", border: "1px solid #f59e0b", borderRadius: "24px", overflow: "hidden" }}>
           <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#f59e0b", textTransform: "uppercase", padding: "16px 20px 8px" }}>
             {pending.length} Friend Request{pending.length > 1 ? "s" : ""}
           </p>
           {pending.map((f) => (
             <div key={f.id} style={{ display: "flex", alignItems: "center", padding: "12px 20px", borderTop: "1px solid #27272a", gap: "12px" }}>
-              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#27272a", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <p style={{ color: "white", fontWeight: 700, fontSize: "14px" }}>{f.otherUser.username?.[0]?.toUpperCase()}</p>
+              <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <p style={{ color: "#111118", fontWeight: 700, fontSize: "14px" }}>{f.otherUser.username?.[0]?.toUpperCase()}</p>
               </div>
-              <p style={{ flex: 1, color: "white", fontWeight: 600, fontSize: "14px" }}>{f.otherUser.username}</p>
-              <button onClick={() => declineRequest(f.id)} style={{ padding: "8px 14px", borderRadius: "10px", background: "none", border: "1px solid #27272a", color: "#71717a", fontSize: "11px", cursor: "pointer" }}>Decline</button>
+              <p style={{ flex: 1, color: "#111118", fontWeight: 600, fontSize: "14px" }}>{f.otherUser.username}</p>
+              <button onClick={() => declineRequest(f.id)} style={{ padding: "8px 14px", borderRadius: "10px", background: "none", border: "none", color: "#6b7280", fontSize: "11px", cursor: "pointer" }}>Decline</button>
               <button onClick={() => acceptRequest(f.id)} style={{ padding: "8px 14px", borderRadius: "10px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>Accept</button>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "4px" }}>
+      <div style={{ display: "flex", gap: "4px", background: "white", border: "none", borderRadius: "16px", padding: "4px" }}>
         {tabBtn("leaderboard", "Board")}
         {tabBtn("friends", "Friends", friends.length || undefined)}
         {tabBtn("add", "Add")}
@@ -272,38 +272,38 @@ export default function FriendsPage() {
       {tab === "leaderboard" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {/* Period selector */}
-          <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "14px", padding: "4px" }}>
+          <div style={{ display: "flex", gap: "4px", background: "white", border: "none", borderRadius: "14px", padding: "4px" }}>
             {periodBtn("today", "Today")}
             {periodBtn("week", "This Week")}
             {periodBtn("month", "This Month")}
           </div>
 
-          <p style={{ fontSize: "10px", color: "#52525b", textAlign: "center", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+          <p style={{ fontSize: "10px", color: "#9ca3af", textAlign: "center", letterSpacing: "0.1em", textTransform: "uppercase" }}>
             {period === "today" ? "Today's score" : period === "week" ? "7-day average" : "30-day average"}
           </p>
 
           {loading ? (
             <div style={{ padding: "40px", textAlign: "center" }}>
-              <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</p>
+              <p style={{ color: "#9ca3af", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</p>
             </div>
           ) : leaderboard.length === 0 ? (
-            <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
-              <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No scores yet</p>
+            <div style={{ background: "white", border: "none", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
+              <p style={{ color: "#9ca3af", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No scores yet</p>
               <p style={{ color: "#3f3f46", fontSize: "11px", marginTop: "8px" }}>Add friends and log your data to compete</p>
             </div>
           ) : (
-            <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
+            <div style={{ background: "white", border: "none", borderRadius: "24px", overflow: "hidden" }}>
               {leaderboard.map((entry, i) => {
                 const isMe = entry.userId === myId;
                 return (
                   <div key={entry.userId} style={{ padding: "16px 20px", background: isMe ? "#27272a" : "transparent", borderBottom: i < leaderboard.length - 1 ? "1px solid #27272a" : "none" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <p style={{ fontSize: i < 3 ? "20px" : "13px", width: "28px", textAlign: "center", color: "#52525b", fontWeight: 700 }}>
+                      <p style={{ fontSize: i < 3 ? "20px" : "13px", width: "28px", textAlign: "center", color: "#9ca3af", fontWeight: 700 }}>
                         {i < 3 ? medals[i] : i + 1}
                       </p>
                       <div style={{ flex: 1 }}>
                         <p style={{ color: isMe ? "white" : "#a1a1aa", fontWeight: 600, fontSize: "14px" }}>
-                          {entry.username} {isMe && <span style={{ color: "#52525b", fontSize: "11px" }}>(you)</span>}
+                          {entry.username} {isMe && <span style={{ color: "#9ca3af", fontSize: "11px" }}>(you)</span>}
                         </p>
                         {entry.badges.length > 0 && (
                           <div style={{ display: "flex", gap: "4px", marginTop: "6px", flexWrap: "wrap" as const }}>
@@ -322,8 +322,8 @@ export default function FriendsPage() {
           )}
 
           {/* Badge legend */}
-          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "20px", padding: "16px 20px" }}>
-            <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "12px" }}>Badges</p>
+          <div style={{ background: "white", border: "none", borderRadius: "20px", padding: "16px 20px" }}>
+            <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "12px" }}>Badges</p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
               {[
                 { emoji: "🔥", label: "On Fire", desc: "7-day streak" },
@@ -338,8 +338,8 @@ export default function FriendsPage() {
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                   <span style={{ fontSize: "16px" }}>{emoji}</span>
                   <div>
-                    <p style={{ color: "white", fontSize: "11px", fontWeight: 600 }}>{label}</p>
-                    <p style={{ color: "#52525b", fontSize: "10px" }}>{desc}</p>
+                    <p style={{ color: "#111118", fontSize: "11px", fontWeight: 600 }}>{label}</p>
+                    <p style={{ color: "#9ca3af", fontSize: "10px" }}>{desc}</p>
                   </div>
                 </div>
               ))}
@@ -350,17 +350,17 @@ export default function FriendsPage() {
 
       {tab === "friends" && (
         friends.length === 0 ? (
-          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
-            <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No friends yet</p>
+          <div style={{ background: "white", border: "none", borderRadius: "24px", padding: "40px 20px", textAlign: "center" }}>
+            <p style={{ color: "#9ca3af", fontSize: "11px", letterSpacing: "0.15em", textTransform: "uppercase" }}>No friends yet</p>
           </div>
         ) : (
-          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
+          <div style={{ background: "white", border: "none", borderRadius: "24px", overflow: "hidden" }}>
             {friends.map((f, i) => (
               <div key={f.id} style={{ display: "flex", alignItems: "center", padding: "16px 20px", borderBottom: i < friends.length - 1 ? "1px solid #27272a" : "none" }}>
-                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#27272a", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "12px" }}>
-                  <p style={{ color: "white", fontWeight: 700, fontSize: "14px" }}>{f.otherUser.username?.[0]?.toUpperCase()}</p>
+                <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "12px" }}>
+                  <p style={{ color: "#111118", fontWeight: 700, fontSize: "14px" }}>{f.otherUser.username?.[0]?.toUpperCase()}</p>
                 </div>
-                <p style={{ color: "white", fontWeight: 600, fontSize: "14px" }}>{f.otherUser.username}</p>
+                <p style={{ color: "#111118", fontWeight: 600, fontSize: "14px" }}>{f.otherUser.username}</p>
               </div>
             ))}
           </div>
@@ -371,19 +371,19 @@ export default function FriendsPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <div style={{ display: "flex", gap: "8px" }}>
             <input placeholder="Search by username..." value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === "Enter" && searchUsers()}
-              style={{ flex: 1, background: "#18181b", border: "1px solid #27272a", borderRadius: "14px", padding: "14px 16px", color: "white", fontSize: "14px", outline: "none" }} />
+              style={{ flex: 1, background: "white", border: "none", borderRadius: "14px", padding: "14px 16px", color: "#111118", fontSize: "14px", outline: "none" }} />
             <button onClick={searchUsers} style={{ padding: "14px 20px", borderRadius: "14px", background: "white", color: "black", fontWeight: 700, fontSize: "12px", border: "none", cursor: "pointer" }}>Search</button>
           </div>
           {searchResults.length > 0 && (
-            <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", overflow: "hidden" }}>
+            <div style={{ background: "white", border: "none", borderRadius: "24px", overflow: "hidden" }}>
               {searchResults.map((p, i) => (
                 <div key={p.id} style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderBottom: i < searchResults.length - 1 ? "1px solid #27272a" : "none" }}>
-                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#27272a", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "12px" }}>
-                    <p style={{ color: "white", fontWeight: 700, fontSize: "13px" }}>{p.username?.[0]?.toUpperCase()}</p>
+                  <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", marginRight: "12px" }}>
+                    <p style={{ color: "#111118", fontWeight: 700, fontSize: "13px" }}>{p.username?.[0]?.toUpperCase()}</p>
                   </div>
-                  <p style={{ flex: 1, color: "white", fontWeight: 600, fontSize: "14px" }}>{p.username}</p>
+                  <p style={{ flex: 1, color: "#111118", fontWeight: 600, fontSize: "14px" }}>{p.username}</p>
                   <button onClick={() => sendRequest(p.id)} disabled={requestSent.includes(p.id)}
-                    style={{ padding: "8px 16px", borderRadius: "10px", background: requestSent.includes(p.id) ? "#27272a" : "white", border: "none", color: requestSent.includes(p.id) ? "#52525b" : "black", fontWeight: 700, fontSize: "11px", cursor: requestSent.includes(p.id) ? "default" : "pointer" }}>
+                    style={{ padding: "8px 16px", borderRadius: "10px", background: requestSent.includes(p.id) ? "#27272a" : "white", border: "none", color: requestSent.includes(p.id) ? "#9ca3af" : "black", fontWeight: 700, fontSize: "11px", cursor: requestSent.includes(p.id) ? "default" : "pointer" }}>
                     {requestSent.includes(p.id) ? "Sent ✓" : "Add"}
                   </button>
                 </div>

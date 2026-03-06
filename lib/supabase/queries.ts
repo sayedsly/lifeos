@@ -409,3 +409,26 @@ export async function logBodyWeight(weight: number, unit: string = "lbs", note: 
     }, { onConflict: "user_id,date" });
   if (error) throw error;
 }
+
+// --- Finance ---
+export async function getFinanceGoals(): Promise<FinanceGoal[]> {
+  const userId = await getUserId();
+  const { data } = await supabase.from("finance_goals").select("*").eq("user_id", userId).order("created_at", { ascending: true });
+  return (data || []).map(r => ({ id: r.id, name: r.name, target: r.target, current: r.current ?? 0, currency: r.currency ?? "USD", createdAt: r.created_at }));
+}
+
+export async function addFinanceGoal(goal: FinanceGoal): Promise<void> {
+  const userId = await getUserId();
+  await supabase.from("finance_goals").insert({ id: goal.id, user_id: userId, name: goal.name, target: goal.target, current: 0, currency: goal.currency, created_at: goal.createdAt });
+}
+
+export async function getFinanceTransactions(): Promise<FinanceTransaction[]> {
+  const userId = await getUserId();
+  const { data } = await supabase.from("finance_transactions").select("*").eq("user_id", userId).order("timestamp", { ascending: false });
+  return (data || []).map(r => ({ id: r.id, date: r.date, timestamp: r.timestamp, amount: r.amount, category: r.category ?? "", description: r.description ?? "", type: r.type ?? "income" }));
+}
+
+export async function addFinanceTransaction(tx: Omit<FinanceTransaction, "category" | "type"> & { goalId?: string }): Promise<void> {
+  const userId = await getUserId();
+  await supabase.from("finance_transactions").insert({ id: tx.id, user_id: userId, date: tx.date, timestamp: tx.timestamp, amount: tx.amount, description: tx.description, category: "savings", type: "income", goal_id: tx.goalId ?? null });
+}

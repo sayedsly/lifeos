@@ -1,7 +1,16 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
+  --bg: #f0f2f7;
+  --surface: #ffffff;
+  --surface2: #f7f8fc;
+  --border: rgba(0,0,0,0.06);
+  --text: #111118;
+  --text2: #6b7280;
+  --text3: #9ca3af;
+  --shadow: 0 2px 16px rgba(0,0,0,0.07);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
 }
 
 * {
@@ -9,22 +18,18 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
-  background-color: var(--background);
-  color: white;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
   overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-::-webkit-scrollbar {
-  display: none;
-}
+::-webkit-scrollbar { display: none; }
 
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
@@ -35,7 +40,7 @@ input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   height: 3px;
-  background: #27272a;
+  background: #e5e7eb;
   border-radius: 9999px;
   outline: none;
 }
@@ -46,6 +51,40 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: white;
+  background: #111118;
   cursor: pointer;
 }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-up { animation: fadeUp 0.35s ease forwards; }
+.animate-scale-in { animation: scaleIn 0.2s ease forwards; }
+
+.card {
+  background: var(--surface);
+  border-radius: 24px;
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.card-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--text3);
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+
+.btn-press {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-press:active { transform: scale(0.96); }

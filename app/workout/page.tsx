@@ -1,175 +1,41 @@
 "use client";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase/client";
-import { getLastSessionForType } from "@/lib/supabase/queries";
-import type { WorkoutSession } from "@/types";
-import WorkoutTypeSelector from "@/components/workout/WorkoutTypeSelector";
-import QuickLogForm from "@/components/workout/QuickLogForm";
-import StructuredSession from "@/components/workout/StructuredSession";
-import WorkoutHistory from "@/components/workout/WorkoutHistory";
 import WorkoutPlans from "@/components/workout/WorkoutPlans";
+import WorkoutHistory from "@/components/workout/WorkoutHistory";
+import StructuredSession from "@/components/workout/StructuredSession";
 import { format } from "date-fns";
 
-type Mode = "select" | "quick" | "structured" | "done";
+type View = "plans" | "session" | "history";
 
 export default function WorkoutPage() {
-  const [mode, setMode] = useState<Mode>("select");
-  const [selectedType, setSelectedType] = useState("Push");
-  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
-  const [todaySession, setTodaySession] = useState<WorkoutSession | null>(null);
-  const [tab, setTab] = useState<"start" | "plans" | "history">("start");
-  const [activePlan, setActivePlan] = useState<any>(null);
-  const [lastSession, setLastSession] = useState<any>(null);
-
-  const load = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase
-      .from("workout_sessions")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("timestamp", { ascending: false });
-    const mapped: WorkoutSession[] = (data || []).map((r: any) => ({
-      id: r.id, date: r.date, timestamp: r.timestamp,
-      type: r.type, duration: r.duration, intensity: r.intensity,
-      exercises: r.exercises, completed: r.completed,
-    }));
-    setSessions(mapped);
-    const today = mapped.find(s => s.date === format(new Date(), "yyyy-MM-dd"));
-    setTodaySession(today || null);
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const handleStartPlan = async (plan: any) => {
-    setActivePlan(plan);
-    setSelectedType(plan.type);
-    const last = await getLastSessionForType(plan.type);
-    setLastSession(last);
-    setMode("structured");
-  };
-
-  const handleStartStructured = async () => {
-    const last = await getLastSessionForType(selectedType);
-    setLastSession(last);
-    setActivePlan(null);
-    setMode("structured");
-  };
-
-  const onSave = () => { load(); setMode("done"); };
-
-  const tabBtn = (t: typeof tab, label: string) => (
-    <button onClick={() => setTab(t)} style={{ flex: 1, padding: "10px", borderRadius: "12px", border: "none", cursor: "pointer", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: tab === t ? "white" : "transparent", color: tab === t ? "black" : "#52525b" }}>
-      {label}
-    </button>
-  );
-
-  if (mode === "quick") return (
-    <div className="space-y-4">
-      <div className="pt-2 pb-1 flex items-center justify-between">
-        <div>
-          <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Workout</p>
-          <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>Quick Log</p>
-        </div>
-        <button onClick={() => setMode("select")} style={{ fontSize: "11px", color: "#52525b", letterSpacing: "0.1em", textTransform: "uppercase", background: "none", border: "none", cursor: "pointer" }}>Back</button>
-      </div>
-      <QuickLogForm onSave={onSave} />
-    </div>
-  );
-
-  if (mode === "structured") return (
-    <div className="space-y-4">
-      <div className="pt-2 pb-1">
-        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Workout</p>
-        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>
-          {activePlan ? activePlan.name : `${selectedType} Day`}
-        </p>
-      </div>
-      <StructuredSession
-        type={selectedType}
-        planExercises={activePlan?.exercises}
-        lastSession={lastSession}
-        onSave={onSave}
-        onCancel={() => { setMode("select"); setActivePlan(null); }}
-      />
-    </div>
-  );
-
-  if (mode === "done") return (
-    <div className="space-y-4">
-      <div className="pt-2 pb-1">
-        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Workout</p>
-        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>Session Complete</p>
-      </div>
-      {todaySession && (
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "24px" }}>
-          <div style={{ width: "56px", height: "56px", borderRadius: "50%", background: "#059669", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", textAlign: "center" }}>
-            <div>
-              <p style={{ fontSize: "22px", fontWeight: 700, color: "white" }}>{todaySession.type}</p>
-              <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "4px" }}>Type</p>
-            </div>
-            <div>
-              <p style={{ fontSize: "22px", fontWeight: 700, color: "white" }}>{todaySession.duration}m</p>
-              <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "4px" }}>Duration</p>
-            </div>
-            <div>
-              <p style={{ fontSize: "22px", fontWeight: 700, color: "white" }}>{todaySession.intensity}</p>
-              <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "4px" }}>RPE</p>
-            </div>
-          </div>
-        </div>
-      )}
-      <button onClick={() => setMode("select")} style={{ width: "100%", padding: "16px", borderRadius: "16px", border: "1px solid #27272a", color: "#71717a", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase", background: "none", cursor: "pointer" }}>
-        Back
-      </button>
-      <WorkoutHistory />
-    </div>
-  );
+  const [view, setView] = useState<View>("plans");
+  const [activeWorkoutId, setActiveWorkoutId] = useState<string | null>(null);
 
   return (
-    <div className="space-y-4">
-      <div className="pt-2 pb-1">
-        <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Workout</p>
-        <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "4px" }}>{format(new Date(), "EEEE, MMM d")}</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: "14px", paddingTop: "16px" }}>
+      {/* Header */}
+      <div style={{ padding: "0 4px" }}>
+        <p style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "4px" }}>{format(new Date(), "EEEE, MMM d")}</p>
+        <p style={{ fontSize: "26px", fontWeight: 900, color: "#111118", letterSpacing: "-0.5px" }}>Workout</p>
       </div>
 
-      {todaySession && (
-        <div style={{ background: "#052e16", border: "1px solid #14532d", borderRadius: "24px", padding: "16px 20px" }}>
-          <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.15em", color: "#34d399", textTransform: "uppercase" }}>Today's Session Logged</p>
-          <p style={{ color: "white", fontWeight: 600, marginTop: "4px" }}>{todaySession.type} · {todaySession.duration}min · RPE {todaySession.intensity}</p>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: "4px", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "4px" }}>
-        {tabBtn("start", "🏋️ Start")}
-        {tabBtn("plans", "📋 Plans")}
-        {tabBtn("history", "📊 History")}
+      {/* Tab bar */}
+      <div style={{ display: "flex", gap: "3px", background: "white", borderRadius: "16px", padding: "4px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+        {(["plans", "session", "history"] as const).map(v => (
+          <button key={v} onClick={() => setView(v)}
+            style={{ flex: 1, padding: "9px", borderRadius: "12px", border: "none", fontFamily: "inherit", fontSize: "12px", fontWeight: 700, cursor: "pointer", background: view === v ? "#111118" : "transparent", color: view === v ? "white" : "#9ca3af", transition: "all 0.15s" }}>
+            {v === "plans" ? "💪 Plans" : v === "session" ? "▶ Session" : "📊 History"}
+          </button>
+        ))}
       </div>
 
-      {tab === "start" && (
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <WorkoutTypeSelector selected={selectedType} onSelect={setSelectedType} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-            <button onClick={() => setMode("quick")}
-              style={{ padding: "16px", borderRadius: "16px", border: "1px solid #3f3f46", color: "#d4d4d8", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, background: "none", cursor: "pointer" }}>
-              Quick Log
-            </button>
-            <button onClick={handleStartStructured}
-              style={{ padding: "16px", borderRadius: "16px", background: "white", color: "black", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" as const, border: "none", cursor: "pointer" }}>
-              Start Session
-            </button>
-          </div>
-        </div>
+      {view === "plans" && (
+        <WorkoutPlans onStartPlan={(plan) => { setActiveWorkoutId(plan.id); setView("session"); }} />
       )}
-
-      {tab === "plans" && <WorkoutPlans onStartPlan={handleStartPlan} />}
-      {tab === "history" && <WorkoutHistory />}
+      {view === "session" && (
+        <StructuredSession type="plan" onSave={() => setView("history")} onCancel={() => setView("plans")} />
+      )}
+      {view === "history" && <WorkoutHistory />}
     </div>
   );
 }
