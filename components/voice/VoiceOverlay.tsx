@@ -28,19 +28,21 @@ const DOMAIN_META: Record<string, { emoji: string; color: string; bg: string }> 
 
 const sheet: React.CSSProperties = {
   position: "fixed", inset: 0, zIndex: 200,
-  background: "rgba(0,0,0,0.55)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)" as any,
+  background: "rgba(0,0,0,0.6)",
+  backdropFilter: "blur(16px)",
+  WebkitBackdropFilter: "blur(16px)" as any,
   display: "flex", alignItems: "flex-end", justifyContent: "center",
 };
 
 const card: React.CSSProperties = {
-  width: "100%", maxWidth: 448,
+  width: "100%", maxWidth: 480,
   background: "white",
-  borderRadius: "28px 28px 0 0",
-  padding: "28px 22px 48px",
-  boxShadow: "0 -8px 48px rgba(0,0,0,0.22)",
-  minHeight: "320px",
+  borderRadius: "32px 32px 0 0",
+  padding: "32px 24px 52px",
+  boxShadow: "0 -12px 60px rgba(0,0,0,0.25)",
+  minHeight: "380px",
+  maxHeight: "90vh",
+  overflowY: "auto" as const,
 };
 
 export default function VoiceOverlay() {
@@ -287,7 +289,7 @@ export default function VoiceOverlay() {
   );
 
   // ── LOW CONFIDENCE ──
-  if (state === "confirming" && intent && intent.confidence < 0.8) return (
+  if (state === "confirming" && intent && !agentResult && intent.confidence < 0.8) return (
     <div style={sheet} onClick={close}>
       <div style={card} onClick={e => e.stopPropagation()}>
         <div style={{ textAlign: "center", marginBottom: "18px" }}>
@@ -326,7 +328,7 @@ export default function VoiceOverlay() {
   );
 
   // ── HIGH CONFIDENCE CONFIRM (editable) ──
-  if (state === "confirming" && intent) {
+  if (state === "confirming" && intent && !agentResult) {
     const isNutrition = intent.domain === "nutrition_add";
     const isSteps = intent.domain === "steps_update";
     const editableFields = isNutrition
