@@ -6,24 +6,28 @@ import { format } from "date-fns";
 
 interface Props { current: number; goal: number; onUpdate: () => void; }
 
+const STEP_AMOUNTS = [500, 1000, 2000, 5000];
+
 export default function StepsCard({ current, goal, onUpdate }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [input, setInput] = useState(String(current));
+  const [adding, setAdding] = useState(false);
+  const [custom, setCustom] = useState("");
   const [saving, setSaving] = useState(false);
   const pct = Math.min(current / goal, 1);
   const today = format(new Date(), "yyyy-MM-dd");
 
-  const handleSave = async () => {
+  const updateSteps = async (newCount: number) => {
     setSaving(true);
-    const count = parseInt(input) || 0;
+    const count = Math.max(0, newCount);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from("step_entries").upsert({ id: `steps-${user.id}-${today}`, user_id: user.id, date: today, count }, { onConflict: "user_id,date" });
+      await supabase.from("step_entries").upsert(
+        { id: `steps-${user.id}-${today}`, user_id: user.id, date: today, count },
+        { onConflict: "user_id,date" }
+      );
       await computeMomentum(today);
       onUpdate();
     }
     setSaving(false);
-    setEditing(false);
   };
 
   return (
@@ -36,26 +40,54 @@ export default function StepsCard({ current, goal, onUpdate }: Props) {
             <span style={{ fontSize: "16px", color: "#9ca3af", fontWeight: 600 }}>/ {goal.toLocaleString()}</span>
           </div>
         </div>
-        <button className="btn-press" onClick={() => { setInput(String(current)); setEditing(!editing); }}
-          style={{ background: editing ? "#111118" : "#f1f5f9", border: "none", borderRadius: "12px", padding: "9px 16px", fontSize: "12px", fontWeight: 700, color: editing ? "white" : "#374151", cursor: "pointer" }}>
-          {editing ? "Cancel" : "Update"}
+        <button className="btn-press" onClick={() => setAdding(!adding)}
+          style={{ background: adding ? "#111118" : "#f1f5f9", border: "none", borderRadius: "12px", padding: "9px 16px", fontSize: "12px", fontWeight: 700, color: adding ? "white" : "#374151", cursor: "pointer" }}>
+          {adding ? "Done" : "+ Add"}
         </button>
       </div>
 
       <div style={{ height: "6px", background: "#f1f5f9", borderRadius: "999px", overflow: "hidden", marginBottom: "8px" }}>
         <div style={{ width: `${pct * 100}%`, height: "100%", background: "linear-gradient(90deg, #fde68a, #f59e0b)", borderRadius: "999px", transition: "width 0.6s cubic-bezier(0.34,1.56,0.64,1)" }} />
       </div>
-      <p style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 600 }}>{Math.max(0, goal - current).toLocaleString()} steps to go</p>
+      <p style={{ fontSize: "11px", color: "#9ca3af", fontWeight: 600, marginBottom: adding ? "14px" : "0" }}>
+        {Math.max(0, goal - current).toLocaleString()} steps to go
+      </p>
 
-      {editing && (
-        <div style={{ display: "flex", gap: "8px", marginTop: "14px" }}>
-          <input type="number" value={input} onChange={e => setInput(e.target.value)} placeholder="Enter steps"
-            style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "12px 16px", fontSize: "16px", fontWeight: 700, color: "#111118", outline: "none", fontFamily: "inherit" }} />
-          <button className="btn-press" onClick={handleSave} disabled={saving}
-            style={{ padding: "12px 20px", background: "#111118", border: "none", borderRadius: "12px", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
-            {saving ? "..." : "Save"}
-          </button>
-        </div>
+      {adding && (
+        <>
+          {/* Quick add buttons */}
+          <div style={{ display: "flex", gap: "6px", marginBottom: "10px", flexWrap: "wrap" as const }}>
+            {STEP_AMOUNTS.map(amt => (
+              <button key={amt} className="btn-press" onClick={() => updateSteps(current + amt)} disabled={saving}
+                style={{ flex: 1, padding: "10px 6px", background: "linear-gradient(135deg,#fef3c7,#fde68a)", border: "none", borderRadius: "12px", fontSize: "12px", fontWeight: 700, color: "#78350f", cursor: "pointer", minWidth: "56px" }}>
+                +{amt >= 1000 ? `${amt/1000}k` : amt}
+              </button>
+            ))}
+          </div>
+          {/* Remove buttons */}
+          <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+            {[500, 1000].map(amt => (
+              <button key={amt} className="btn-press" onClick={() => updateSteps(current - amt)} disabled={saving}
+                style={{ flex: 1, padding: "10px 6px", background: "#fef2f2", border: "none", borderRadius: "12px", fontSize: "12px", fontWeight: 700, color: "#ef4444", cursor: "pointer" }}>
+                −{amt >= 1000 ? `${amt/1000}k` : amt}
+              </button>
+            ))}
+            <button className="btn-press" onClick={() => updateSteps(0)} disabled={saving}
+              style={{ padding: "10px 14px", background: "#fef2f2", border: "none", borderRadius: "12px", fontSize: "12px", fontWeight: 700, color: "#ef4444", cursor: "pointer" }}>
+              Reset
+            </button>
+          </div>
+          {/* Manual input */}
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input type="number" value={custom} onChange={e => setCustom(e.target.value)}
+              placeholder="Set exact count..."
+              style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "11px 14px", fontSize: "15px", fontWeight: 700, color: "#111118", outline: "none", fontFamily: "inherit" }} />
+            <button className="btn-press" onClick={() => { if (custom) { updateSteps(parseInt(custom)); setCustom(""); }}} disabled={saving || !custom}
+              style={{ padding: "11px 18px", background: "#111118", border: "none", borderRadius: "12px", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+              {saving ? "..." : "Set"}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

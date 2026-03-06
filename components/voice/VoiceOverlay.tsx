@@ -15,6 +15,32 @@ const DEFAULT_EXAMPLES = [
   "logged push workout 45 minutes RPE 7",
 ];
 
+const DOMAIN_META: Record<string, { emoji: string; color: string; bg: string }> = {
+  nutrition_add:   { emoji: "🥗", color: "#15803d", bg: "#dcfce7" },
+  hydration_add:   { emoji: "💧", color: "#1d4ed8", bg: "#dbeafe" },
+  sleep_log:       { emoji: "😴", color: "#6d28d9", bg: "#ede9fe" },
+  steps_update:    { emoji: "👟", color: "#92400e", bg: "#fef3c7" },
+  task_create:     { emoji: "✅", color: "#3730a3", bg: "#e0e7ff" },
+  finance_expense: { emoji: "💰", color: "#92400e", bg: "#fef3c7" },
+  finance_goal_add:{ emoji: "🎯", color: "#0369a1", bg: "#e0f2fe" },
+};
+
+const sheet: React.CSSProperties = {
+  position: "fixed", inset: 0, zIndex: 200,
+  background: "rgba(0,0,0,0.45)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)" as any,
+  display: "flex", alignItems: "flex-end", justifyContent: "center",
+};
+
+const card: React.CSSProperties = {
+  width: "100%", maxWidth: 448,
+  background: "white",
+  borderRadius: "32px 32px 0 0",
+  padding: "24px 22px 36px",
+  boxShadow: "0 -8px 48px rgba(0,0,0,0.18)",
+};
+
 export default function VoiceOverlay() {
   const { isVoiceOpen, setVoiceOpen } = useLifeStore();
   const { state, intent, setIntent, error, transcript, speechSupported, start, stop, confirm, cancel, submitText } = useVoice();
@@ -30,10 +56,7 @@ export default function VoiceOverlay() {
     if (isVoiceOpen && !hasStarted.current) {
       hasStarted.current = true;
       setMode("listening");
-      // Small timeout still needed for component to mount
-      setTimeout(() => {
-        start();
-      }, 50);
+      setTimeout(() => { start(); }, 50);
     }
     if (!isVoiceOpen) hasStarted.current = false;
   }, [isVoiceOpen]);
@@ -93,127 +116,125 @@ export default function VoiceOverlay() {
   const handleConfirmEdited = async () => {
     if (!intent) return;
     await confirm({ ...intent, data: editedIntent });
-    // Navigate to the relevant section after logging
     const routes: Record<string, string> = {
-      nutrition_add: "/nutrition",
-      hydration_add: "/",
-      sleep_log: "/",
-      steps_update: "/",
-      task_create: "/tasks",
-      finance_goal_add: "/finance",
-      finance_expense: "/finance",
+      nutrition_add: "/nutrition", hydration_add: "/",
+      sleep_log: "/", steps_update: "/",
+      task_create: "/tasks", finance_goal_add: "/finance", finance_expense: "/finance",
     };
     const route = routes[intent.domain] || "/";
-    setTimeout(() => {
-      setVoiceOpen(false);
-      window.location.href = route;
-    }, 1200);
+    setTimeout(() => { setVoiceOpen(false); window.location.href = route; }, 1200);
   };
 
-  const overlay = {
-    position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.97)",
-    zIndex: 100, display: "flex", flexDirection: "column" as const,
-    alignItems: "center", overflowY: "auto" as const, padding: "48px 24px 120px",
-  };
+  const meta = intent ? (DOMAIN_META[intent.domain] || { emoji: "📝", color: "#374151", bg: "#f3f4f6" }) : null;
 
-  // ── LISTENING ──────────────────────────────────────────────
+  // ── LISTENING ──
   if (state === "recording" || (mode === "listening" && state === "idle")) return (
-    <div style={{ ...overlay, justifyContent: "center" }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "32px" }}>
-        {/* Pulsing mic */}
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", inset: "-16px", borderRadius: "50%", background: "rgba(239,68,68,0.15)", animation: "pulse 1.5s ease-in-out infinite" }} />
-          <div style={{ width: "88px", height: "88px", borderRadius: "50%", background: "#ef4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: "36px" }}>🎙️</span>
-          </div>
+    <div style={sheet}>
+      <div style={card}>
+        <p style={{ fontSize: "11px", fontWeight: 800, color: "#9ca3af", textAlign: "center", letterSpacing: "0.2em", marginBottom: "20px" }}>
+          {speechSupported ? "LISTENING..." : "QUICK ADD"}
+        </p>
+
+        {/* Animated mic */}
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "22px", position: "relative", height: 100 }}>
+          {state === "recording" && [90, 68, 48].map((size, i) => (
+            <div key={i} style={{
+              position: "absolute", top: "50%", left: "50%",
+              width: size, height: size,
+              transform: "translate(-50%, -50%)",
+              borderRadius: "50%",
+              background: `rgba(102,126,234,${0.07 + i * 0.05})`,
+              animation: `vpulse ${1.1 + i * 0.25}s ease-in-out infinite`,
+            }} />
+          ))}
+          <div style={{
+            width: 64, height: 64, borderRadius: "20px",
+            background: "linear-gradient(135deg, #667eea, #764ba2)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: "28px", zIndex: 1, position: "relative",
+            boxShadow: "0 6px 24px rgba(102,126,234,0.35)",
+          }}>🎙️</div>
         </div>
-        <div style={{ textAlign: "center" }}>
-          <p style={{ color: "white", fontSize: "20px", fontWeight: 700 }}>{speechSupported ? "Listening..." : "Voice Not Available"}</p>
-          <p style={{ color: "#52525b", fontSize: "13px", marginTop: "8px" }}>
-            {speechSupported ? 'Say anything — "ate eggs", "walked a mile"' : "iOS Safari doesn't support voice — use Quick Add below"}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: "12px" }}>
+
+        <p style={{ fontSize: "13px", color: "#9ca3af", fontWeight: 600, textAlign: "center", marginBottom: "22px" }}>
+          {speechSupported ? "Say anything — &quot;ate eggs&quot;, &quot;walked 3k steps&quot;" : "Voice not available — use Quick Add below"}
+        </p>
+
+        <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
           <button onClick={() => goToQuickAdd()}
-            style={{ padding: "12px 20px", borderRadius: "12px", background: "#18181b", border: "1px solid #27272a", color: "#a1a1aa", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}>
+            style={{ flex: 1, padding: "13px", borderRadius: "14px", background: "#f1f5f9", border: "none", color: "#374151", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
             ⌨️ Quick Add
           </button>
-          {speechSupported && <button onClick={() => stop()}
-            style={{ padding: "12px 24px", borderRadius: "12px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
-            Done
-          </button>}
+          {speechSupported && (
+            <button onClick={() => stop()}
+              style={{ flex: 1, padding: "13px", borderRadius: "14px", background: "#111118", border: "none", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+              Done ✓
+            </button>
+          )}
           <button onClick={close}
-            style={{ padding: "12px 20px", borderRadius: "12px", background: "#18181b", border: "1px solid #27272a", color: "#71717a", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}>
-            Cancel
+            style={{ padding: "13px 16px", borderRadius: "14px", background: "#fef2f2", border: "none", color: "#ef4444", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+            ✕
           </button>
         </div>
+        <style>{`@keyframes vpulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.5} 50%{transform:translate(-50%,-50%) scale(1.12);opacity:1} }`}</style>
       </div>
-      <style>{`@keyframes pulse { 0%,100% { transform: scale(1); opacity: 0.6; } 50% { transform: scale(1.15); opacity: 0.2; } }`}</style>
     </div>
   );
 
-  // ── PROCESSING ────────────────────────────────────────────
+  // ── PROCESSING ──
   if (state === "processing") return (
-    <div style={{ ...overlay, justifyContent: "center" }}>
-      <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
-        <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "2px solid #27272a", borderTopColor: "white", animation: "spin 0.8s linear infinite" }} />
-        <p style={{ color: "#52525b", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Processing...</p>
+    <div style={sheet}>
+      <div style={{ ...card, display: "flex", flexDirection: "column", alignItems: "center", gap: "16px", paddingTop: "40px", paddingBottom: "48px" }}>
+        <div style={{ width: 44, height: 44, borderRadius: "50%", border: "3px solid #e5e7eb", borderTopColor: "#6366f1", animation: "vspin 0.7s linear infinite" }} />
+        <p style={{ fontSize: "13px", color: "#6b7280", fontWeight: 600, letterSpacing: "0.1em" }}>Processing...</p>
+        <style>{`@keyframes vspin { to { transform: rotate(360deg); } }`}</style>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 
-  // ── LOW CONFIDENCE ────────────────────────────────────────
-  if (state === "confirming" && intent && intent.confidence < 0.8) {
-    const domainLabel = intent.domain.replace(/_/g, " ");
-    const emoji = intent.domain.includes("nutrition") ? "🥗" : intent.domain.includes("steps") ? "👟" : intent.domain.includes("hydration") ? "💧" : intent.domain.includes("sleep") ? "😴" : intent.domain.includes("task") ? "✅" : "💰";
-    return (
-      <div style={{ ...overlay, justifyContent: "center" }}>
-        <div style={{ width: "100%", maxWidth: "380px", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div style={{ textAlign: "center" }}>
-            <p style={{ fontSize: "32px", marginBottom: "8px" }}>🤔</p>
-            <p style={{ color: "white", fontSize: "18px", fontWeight: 700 }}>I think I got it...</p>
-            <p style={{ color: "#52525b", fontSize: "13px", marginTop: "6px" }}>Not totally sure — double check below</p>
-          </div>
+  // ── LOW CONFIDENCE ──
+  if (state === "confirming" && intent && intent.confidence < 0.8) return (
+    <div style={sheet}>
+      <div style={card}>
+        <div style={{ textAlign: "center", marginBottom: "18px" }}>
+          <span style={{ fontSize: "36px" }}>🤔</span>
+          <p style={{ fontSize: "17px", fontWeight: 800, color: "#111118", marginTop: "8px" }}>I think I got it...</p>
+          <p style={{ fontSize: "12px", color: "#9ca3af", fontWeight: 600, marginTop: "4px" }}>Double check below — {Math.round(intent.confidence * 100)}% confident</p>
+        </div>
 
-          <div style={{ background: "#1c1400", border: "1px solid #f59e0b", borderRadius: "20px", padding: "16px 20px" }}>
-            <p style={{ fontSize: "10px", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "10px" }}>⚠️ Low confidence — {Math.round(intent.confidence * 100)}% sure</p>
-            <p style={{ color: "white", fontSize: "15px", fontWeight: 700 }}>{emoji} {domainLabel}</p>
-            {Object.entries(intent.data).filter(([k]) => !["source"].includes(k)).slice(0, 4).map(([k, v]) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
-                <p style={{ color: "#71717a", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k}</p>
-                <p style={{ color: "#a1a1aa", fontSize: "12px", fontWeight: 600 }}>{String(v)}</p>
-              </div>
-            ))}
-          </div>
+        <div style={{ background: meta?.bg || "#f7f8fc", borderRadius: "20px", padding: "16px", marginBottom: "16px" }}>
+          <p style={{ fontSize: "14px", fontWeight: 700, color: meta?.color || "#374151" }}>{meta?.emoji} {intent.domain.replace(/_/g, " ")}</p>
+          {Object.entries(intent.data).filter(([k]) => !["source"].includes(k)).slice(0, 4).map(([k, v]) => (
+            <div key={k} style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
+              <p style={{ fontSize: "11px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k}</p>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: "#374151" }}>{String(v)}</p>
+            </div>
+          ))}
+        </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <button onClick={handleConfirmEdited}
-              style={{ width: "100%", padding: "14px", borderRadius: "14px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
-              ✓ Yeah that's right — Save
-            </button>
-            <button onClick={() => goToQuickAdd(transcript)}
-              style={{ width: "100%", padding: "14px", borderRadius: "14px", background: "#18181b", border: "1px solid #27272a", color: "#a1a1aa", fontWeight: 600, fontSize: "13px", cursor: "pointer" }}>
-              ✏️ Fix it in Quick Add
-            </button>
-            <button onClick={handleRedo}
-              style={{ width: "100%", padding: "12px", borderRadius: "14px", background: "none", border: "1px solid #27272a", color: "#71717a", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}>
-              🎙️ Try Again
-            </button>
-          </div>
-          <button onClick={close} style={{ background: "none", border: "none", color: "#3f3f46", fontSize: "12px", cursor: "pointer", textAlign: "center" as const }}>Cancel</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <button onClick={handleConfirmEdited}
+            style={{ padding: "14px", borderRadius: "14px", background: "#111118", border: "none", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+            ✓ That's right — Save
+          </button>
+          <button onClick={() => goToQuickAdd(transcript)}
+            style={{ padding: "13px", borderRadius: "14px", background: "#f1f5f9", border: "none", color: "#374151", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
+            ✏️ Fix in Quick Add
+          </button>
+          <button onClick={handleRedo}
+            style={{ padding: "12px", borderRadius: "14px", background: "none", border: "1.5px solid #e5e7eb", color: "#6b7280", fontWeight: 600, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+            🎙️ Try Again
+          </button>
+          <button onClick={close} style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "12px", cursor: "pointer", fontFamily: "inherit", padding: "6px" }}>Cancel</button>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // ── HIGH CONFIDENCE CONFIRM (editable) ────────────────────
+  // ── HIGH CONFIDENCE CONFIRM (editable) ──
   if (state === "confirming" && intent) {
-    const domainLabel = intent.domain.replace(/_/g, " ");
-    const emoji = intent.domain.includes("nutrition") ? "🥗" : intent.domain.includes("steps") ? "👟" : intent.domain.includes("hydration") ? "💧" : intent.domain.includes("sleep") ? "😴" : intent.domain.includes("task") ? "✅" : "💰";
     const isNutrition = intent.domain === "nutrition_add";
     const isSteps = intent.domain === "steps_update";
-
     const editableFields = isNutrition
       ? [
           { key: "food", label: "Food", type: "text" },
@@ -221,7 +242,6 @@ export default function VoiceOverlay() {
           { key: "protein", label: "Protein (g)", type: "number" },
           { key: "carbs", label: "Carbs (g)", type: "number" },
           { key: "fat", label: "Fat (g)", type: "number" },
-          { key: "fiber", label: "Fiber (g)", type: "number" },
         ]
       : isSteps
       ? [{ key: "count", label: "Steps", type: "number" }, { key: "activity", label: "Activity", type: "text" }]
@@ -230,25 +250,35 @@ export default function VoiceOverlay() {
         }));
 
     return (
-      <div style={overlay}>
-        <div style={{ width: "100%", maxWidth: "400px", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div style={{ textAlign: "center" }}>
-            <p style={{ fontSize: "32px", marginBottom: "8px" }}>{emoji}</p>
-            <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "4px" }}>Confirm Log</p>
-            <p style={{ fontSize: "20px", fontWeight: 700, color: "white", textTransform: "capitalize" }}>{domainLabel}</p>
-            {transcript && <p style={{ color: "#3f3f46", fontSize: "11px", marginTop: "6px", fontStyle: "italic" }}>"{transcript}"</p>}
+      <div style={sheet}>
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "18px" }}>
+            <div style={{ width: 44, height: 44, borderRadius: "14px", background: meta?.bg || "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" }}>
+              {meta?.emoji || "📝"}
+            </div>
+            <div>
+              <p style={{ fontSize: "11px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.15em" }}>Confirm</p>
+              <p style={{ fontSize: "16px", fontWeight: 800, color: "#111118", textTransform: "capitalize" }}>{intent.domain.replace(/_/g, " ")}</p>
+            </div>
+            {transcript && <p style={{ marginLeft: "auto", fontSize: "10px", color: "#9ca3af", fontStyle: "italic", maxWidth: "100px", textAlign: "right" as const }}>"{transcript}"</p>}
           </div>
 
-          <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "20px", padding: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-            <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em" }}>Tap any field to edit</p>
+          <div style={{ background: "#f7f8fc", borderRadius: "18px", padding: "14px", marginBottom: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+            <p style={{ fontSize: "9px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.12em", fontWeight: 700 }}>Tap to edit</p>
             {editableFields.map(({ key, label, type }) => (
               <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px" }}>
-                <p style={{ fontSize: "11px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", flexShrink: 0 }}>{label}</p>
+                <p style={{ fontSize: "11px", color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 700, flexShrink: 0 }}>{label}</p>
                 <input
                   type={type}
                   value={editedIntent[key] ?? ""}
                   onChange={e => setEditedIntent(p => ({ ...p, [key]: type === "number" ? parseFloat(e.target.value) || 0 : e.target.value }))}
-                  style={{ background: "#27272a", border: "none", borderRadius: "8px", padding: "8px 12px", color: "white", fontSize: "13px", fontWeight: 600, textAlign: type === "number" ? "right" as const : "left" as const, outline: "none", flex: 1, maxWidth: type === "number" ? "100px" : "200px", boxSizing: "border-box" as const }}
+                  style={{
+                    background: "white", border: "1.5px solid #e5e7eb", borderRadius: "10px",
+                    padding: "8px 12px", color: "#111118", fontSize: "13px", fontWeight: 700,
+                    textAlign: type === "number" ? "right" as const : "left" as const,
+                    outline: "none", flex: 1, maxWidth: type === "number" ? "100px" : "200px",
+                    fontFamily: "inherit",
+                  }}
                 />
               </div>
             ))}
@@ -256,15 +286,15 @@ export default function VoiceOverlay() {
 
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={handleRedo}
-              style={{ padding: "14px 16px", borderRadius: "14px", background: "#18181b", border: "1px solid #27272a", color: "#71717a", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}>
-              🎙️ Redo
+              style={{ padding: "13px 14px", borderRadius: "14px", background: "#f1f5f9", border: "none", color: "#374151", fontWeight: 700, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+              🔄
             </button>
             <button onClick={close}
-              style={{ padding: "14px 16px", borderRadius: "14px", background: "none", border: "1px solid #27272a", color: "#71717a", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
-              Cancel
+              style={{ padding: "13px 14px", borderRadius: "14px", background: "#fef2f2", border: "none", color: "#ef4444", fontWeight: 700, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>
+              ✕
             </button>
             <button onClick={handleConfirmEdited}
-              style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
+              style={{ flex: 1, padding: "13px", borderRadius: "14px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
               Save →
             </button>
           </div>
@@ -273,119 +303,110 @@ export default function VoiceOverlay() {
     );
   }
 
-  // ── SUCCESS ───────────────────────────────────────────────
+  // ── SUCCESS ──
   if (state === "success") return (
-    <div style={{ ...overlay, justifyContent: "center" }}>
-      <div style={{ textAlign: "center", display: "flex", flexDirection: "column", gap: "16px", alignItems: "center" }}>
-        <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: "28px" }}>✓</span>
-        </div>
-        <p style={{ color: "white", fontSize: "18px", fontWeight: 700 }}>Logged!</p>
+    <div style={sheet}>
+      <div style={{ ...card, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", paddingTop: "36px", paddingBottom: "44px" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "20px", background: "linear-gradient(135deg,#86efac,#22c55e)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "30px", boxShadow: "0 6px 24px rgba(34,197,94,0.3)" }}>✓</div>
+        <p style={{ fontSize: "20px", fontWeight: 800, color: "#111118" }}>Logged!</p>
+        <p style={{ fontSize: "13px", color: "#9ca3af", fontWeight: 600 }}>Nice work 💪</p>
       </div>
     </div>
   );
 
-  // ── ERROR ─────────────────────────────────────────────────
+  // ── ERROR ──
   if (state === "error") return (
-    <div style={{ ...overlay, justifyContent: "center" }}>
-      <div style={{ width: "100%", maxWidth: "360px", display: "flex", flexDirection: "column", gap: "16px", alignItems: "center", textAlign: "center" as const }}>
-        <p style={{ fontSize: "32px" }}>🤷</p>
-        <p style={{ color: "white", fontSize: "16px", fontWeight: 700 }}>Didn't catch that</p>
-        <p style={{ color: "#71717a", fontSize: "13px", lineHeight: "1.6" }}>Try being specific — "walked 2 miles", "ate 2 eggs 150 calories", "drank a glass of water"</p>
-        <div style={{ display: "flex", gap: "8px", width: "100%" }}>
+    <div style={sheet}>
+      <div style={card}>
+        <div style={{ textAlign: "center", marginBottom: "18px" }}>
+          <span style={{ fontSize: "36px" }}>🤷</span>
+          <p style={{ fontSize: "17px", fontWeight: 800, color: "#111118", marginTop: "8px" }}>Didn't catch that</p>
+          <p style={{ fontSize: "12px", color: "#9ca3af", fontWeight: 600, marginTop: "4px", lineHeight: 1.6 }}>Try: "walked 2 miles", "ate 2 eggs 150 cal", "drank a glass of water"</p>
+        </div>
+        <div style={{ display: "flex", gap: "8px" }}>
           <button onClick={handleRedo}
-            style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>
+            style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
             🎙️ Try Again
           </button>
           <button onClick={() => goToQuickAdd(transcript)}
-            style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "#18181b", border: "1px solid #27272a", color: "#a1a1aa", fontWeight: 600, fontSize: "12px", cursor: "pointer" }}>
+            style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "#f1f5f9", border: "none", color: "#374151", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
             ⌨️ Quick Add
           </button>
         </div>
-        <button onClick={close} style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", cursor: "pointer" }}>Cancel</button>
+        <button onClick={close} style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "12px", cursor: "pointer", fontFamily: "inherit", padding: "10px", width: "100%", marginTop: "6px" }}>Cancel</button>
       </div>
     </div>
   );
 
-  // ── QUICK ADD (text mode) ─────────────────────────────────
+  // ── QUICK ADD (text mode) ──
   return (
-    <div style={overlay}>
-      <div style={{ width: "100%", maxWidth: "400px", display: "flex", flexDirection: "column", gap: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div style={sheet}>
+      <div style={card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
           <div>
-            <p style={{ fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase" }}>Quick Add</p>
-            <p style={{ fontSize: "20px", fontWeight: 700, color: "white", marginTop: "2px" }}>What did you do?</p>
+            <p style={{ fontSize: "10px", fontWeight: 800, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.15em" }}>Quick Add</p>
+            <p style={{ fontSize: "20px", fontWeight: 900, color: "#111118", marginTop: "2px" }}>What did you do?</p>
           </div>
           <button onClick={handleRedo}
-            style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#ef4444", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
+            style={{ width: 46, height: 46, borderRadius: "14px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", cursor: "pointer", fontSize: "20px", boxShadow: "0 4px 16px rgba(102,126,234,0.3)" }}>
             🎙️
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <textarea
-            value={textInput}
-            onChange={e => setTextInput(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmitText(); } }}
-            placeholder='e.g. "ate 2 eggs", "walked a mile", "drank 3 glasses of water"'
-            rows={3}
-            style={{ width: "100%", background: "#18181b", border: "1px solid #27272a", borderRadius: "16px", padding: "16px", color: "white", fontSize: "15px", outline: "none", resize: "none" as const, boxSizing: "border-box" as const }}
-          />
-          <button onClick={handleSubmitText} disabled={!textInput.trim()}
-            style={{ width: "100%", padding: "16px", borderRadius: "16px", background: textInput.trim() ? "white" : "#27272a", color: textInput.trim() ? "black" : "#52525b", fontWeight: 700, fontSize: "13px", border: "none", cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>
-            Log It
+        <textarea
+          value={textInput}
+          onChange={e => setTextInput(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmitText(); } }}
+          placeholder="e.g. ate 2 eggs, walked 3k steps, drank 500ml water"
+          rows={3}
+          autoFocus
+          style={{ width: "100%", background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "16px", padding: "14px", color: "#111118", fontSize: "15px", fontWeight: 600, outline: "none", resize: "none" as const, boxSizing: "border-box" as const, fontFamily: "inherit", marginBottom: "10px" }}
+        />
+        <button onClick={handleSubmitText} disabled={!textInput.trim()}
+          style={{ width: "100%", padding: "14px", borderRadius: "14px", background: textInput.trim() ? "linear-gradient(135deg,#667eea,#764ba2)" : "#e5e7eb", color: textInput.trim() ? "white" : "#9ca3af", fontWeight: 700, fontSize: "13px", border: "none", cursor: textInput.trim() ? "pointer" : "default", fontFamily: "inherit", marginBottom: "16px" }}>
+          Log It →
+        </button>
+
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+          <p style={{ fontSize: "9px", fontWeight: 700, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.15em" }}>Examples</p>
+          <button onClick={() => setShowAddExample(!showAddExample)}
+            style={{ background: "none", border: "none", color: "#6366f1", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+            {showAddExample ? "Cancel" : "+ Add yours"}
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#3f3f46", textTransform: "uppercase" }}>Examples — tap to use</p>
-            <button onClick={() => setShowAddExample(!showAddExample)}
-              style={{ background: "none", border: "none", color: "#52525b", fontSize: "11px", cursor: "pointer" }}>
-              {showAddExample ? "Cancel" : "+ Add yours"}
+        {showAddExample && (
+          <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
+            <input autoFocus placeholder="e.g. did 50 pushups" value={newExample}
+              onChange={e => setNewExample(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleAddExample()}
+              style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "10px", padding: "10px 12px", color: "#111118", fontSize: "13px", fontWeight: 600, outline: "none", fontFamily: "inherit" }} />
+            <button onClick={handleAddExample}
+              style={{ padding: "10px 14px", borderRadius: "10px", background: "#111118", border: "none", color: "white", fontWeight: 700, fontSize: "11px", cursor: "pointer", fontFamily: "inherit" }}>Save</button>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px", maxHeight: "140px", overflowY: "auto" as const }}>
+          {customExamples.map((cmd, i) => (
+            <div key={i} style={{ display: "flex", gap: "6px" }}>
+              <button onClick={() => setTextInput(cmd)}
+                style={{ flex: 1, textAlign: "left" as const, background: "#ede9fe", border: "none", borderRadius: "10px", padding: "8px 12px", color: "#6d28d9", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                ⭐ {cmd}
+              </button>
+              <button onClick={() => handleRemoveExample(i)}
+                style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "16px", cursor: "pointer", padding: "4px 6px" }}>×</button>
+            </div>
+          ))}
+          {DEFAULT_EXAMPLES.map((cmd, i) => (
+            <button key={i} onClick={() => setTextInput(cmd)}
+              style={{ textAlign: "left" as const, background: "#f7f8fc", border: "none", borderRadius: "10px", padding: "8px 12px", color: "#6b7280", fontSize: "11px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+              {cmd}
             </button>
-          </div>
-
-          {showAddExample && (
-            <div style={{ display: "flex", gap: "8px" }}>
-              <input autoFocus placeholder="e.g. did 50 pushups" value={newExample}
-                onChange={e => setNewExample(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleAddExample()}
-                style={{ flex: 1, background: "#18181b", border: "1px solid #27272a", borderRadius: "10px", padding: "10px 12px", color: "white", fontSize: "13px", outline: "none" }} />
-              <button onClick={handleAddExample}
-                style={{ padding: "10px 14px", borderRadius: "10px", background: "white", border: "none", color: "black", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>
-                Save
-              </button>
-            </div>
-          )}
-
-          {customExamples.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-              {customExamples.map((cmd, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <button onClick={() => setTextInput(cmd)}
-                    style={{ flex: 1, textAlign: "left" as const, background: "#1a1a2e", border: "1px solid #3b82f6", borderRadius: "10px", padding: "8px 12px", color: "#93c5fd", fontSize: "11px", cursor: "pointer" }}>
-                    ⭐ {cmd}
-                  </button>
-                  <button onClick={() => handleRemoveExample(i)}
-                    style={{ background: "none", border: "none", color: "#3f3f46", fontSize: "16px", cursor: "pointer", padding: "4px 6px" }}>×</button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            {DEFAULT_EXAMPLES.map((cmd, i) => (
-              <button key={i} onClick={() => setTextInput(cmd)}
-                style={{ textAlign: "left" as const, background: "#18181b", border: "1px solid #27272a", borderRadius: "10px", padding: "8px 12px", color: "#71717a", fontSize: "11px", cursor: "pointer" }}>
-                {cmd}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
 
         <button onClick={close}
-          style={{ background: "none", border: "none", color: "#52525b", fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer", padding: "8px" }}>
+          style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "12px", cursor: "pointer", fontFamily: "inherit", padding: "12px", width: "100%", marginTop: "8px" }}>
           Cancel
         </button>
       </div>
