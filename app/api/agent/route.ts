@@ -48,6 +48,23 @@ export async function POST(req: NextRequest) {
       userSupabase.from("ai_memory").select("facts").eq("user_id", userId).single(),
     ]);
 
+    // Fetch achievements, challenges, friends separately to avoid complex query
+    const { data: achievements } = await userSupabase.from("achievements").select("type,title,earned_at").eq("user_id", userId);
+    const { data: friendships } = await userSupabase.from("friendships").select("requester_id,addressee_id").or(`requester_id.eq.${userId},addressee_id.eq.${userId}`).eq("status","accepted");
+    const friendIds = (friendships || []).map((f: any) => f.requester_id === userId ? f.addressee_id : f.requester_id);
+    let friendProfiles: any[] = [];
+    if (friendIds.length > 0) {
+      const { data: fp } = await userSupabase.from("profiles").select("id,username").in("id", friendIds);
+      friendProfiles = fp || [];
+    }
+    const { data: activeChallenges } = await userSupabase.from("challenge_participants").select("challenge_id").eq("user_id", userId);
+    const challengeIds = (activeChallenges || []).map((c: any) => c.challenge_id);
+    let challenges: any[] = [];
+    if (challengeIds.length > 0) {
+      const { data: ch } = await userSupabase.from("challenges").select("*").in("id", challengeIds);
+      challenges = ch || [];
+    }
+
     const s = settingsRow || {};
     const userGoals = {
       calories: s.macro_targets?.calories || 2000,
@@ -91,6 +108,13 @@ BODY & SETTINGS:
 - Goals: ${JSON.stringify(userGoals)}
 - Recurring tasks: ${(recurringTasks || []).map((t: any) => t.title).join(", ") || "none"}
 ${memoryFacts.length > 0 ? "\nMY PERSISTENT MEMORY ABOUT YOU:\n" + memoryFacts.map((f: string) => `- ${f}`).join("\n") : ""}
+
+FRIENDS (${friendProfiles.length}): ${friendProfiles.map((f: any) => `${f.username}(id:${f.id})`).join(", ") || "none"}
+
+ACHIEVEMENTS EARNED (${(achievements||[]).length}/${14}): ${(achievements||[]).map((a: any) => a.title).join(", ") || "none"}
+ACHIEVEMENTS NOT YET EARNED: ${["First Rep","Tracked","Weighed In","3-Day Streak","Week Warrior","Unstoppable","Protein King","Hydration Hero","Step Master","Iron Regular","Diamond","Perfect Day","Sleep King","Money Moves"].filter(t => !(achievements||[]).find((a: any) => a.title === t)).join(", ")}
+
+ACTIVE CHALLENGES: ${challenges.map((c: any) => `${c.title}(${c.type},goal:${c.goal},ends:${c.end_date})`).join(", ") || "none"}
 `;
 
     const historyContext = history && history.length > 0
@@ -122,6 +146,10 @@ You can perform ANY of these actions by returning them in ACTIONS array:
 - finance_split: {"splits":[{"goalName":"Japan","amount":333},{"goalName":"Mortgage","amount":333}]}
 - body_weight_log: {"weight":165,"unit":"lbs"}
 - settings_update: {"step_goal":12000} or {"sleep_goal":8} or {"hydration_goal":3000}
+- challenge_create: {"title":"Step Battle","type":"steps","goal":10000,"days":7,"inviteAll":true} or {"title":"Step Battle","type":"steps","goal":10000,"days":7,"inviteFriendIds":["id1","id2"]}
+- achievement_check: {} — triggers achievement check and reports what user has/hasn't earned
+- mood_log: {"mood":4,"note":"Feeling great"} — mood 1-5
+- body_weight_log: {"weight":175,"unit":"lbs"}
 
 RULES:
 - ALWAYS return complete responses, never cut off mid-sentence
@@ -131,6 +159,10 @@ RULES:
 - If your response ends with a question for clarification, set needsFollowUp: true
 - Keep responses under 180 words, warm and direct
 - Use the user's actual data numbers in responses
+- When user asks about achievements, list what they have and what they're close to earning based on their data
+- When user says "invite all my friends" to a challenge, use inviteAll:true
+- When user mentions specific friends by username, look them up in the FRIENDS list and use their ids in inviteFriendIds
+- For food photo analysis requests, acknowledge you can analyze food images when user uploads one via the attachment button
 
 MEMORY RULE (MANDATORY): Any time the user mentions a personal preference, habit, hobby, schedule, goal, or fact about themselves — you MUST output a MEMORY line. This is non-negotiable.
 Examples: "I like Pokemon" → MEMORY:["User's hobby is Pokemon"]

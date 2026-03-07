@@ -116,13 +116,25 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
 
   // ── SLEEP ──
   if (action.type === "sleep_log") {
-    await supabase.from("sleep_entries").upsert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: action.data?.date || today, duration: action.data?.duration || 8, quality: action.data?.quality || 3, bedtime: action.data?.bedtime || "23:00", wake_time: action.data?.wakeTime || "07:00", timestamp: Date.now() });
+    const sleepDate = action.data?.date || today;
+    const { data: existingSleep } = await supabase.from("sleep_entries").select("id").eq("user_id", session.user.id).eq("date", sleepDate).single();
+    if (existingSleep) {
+      await supabase.from("sleep_entries").update({ duration: action.data?.duration || 8, quality: action.data?.quality || 3, bedtime: action.data?.bedtime || "23:00", wake_time: action.data?.wakeTime || "07:00", timestamp: Date.now() }).eq("id", existingSleep.id);
+    } else {
+      await supabase.from("sleep_entries").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: sleepDate, duration: action.data?.duration || 8, quality: action.data?.quality || 3, bedtime: action.data?.bedtime || "23:00", wake_time: action.data?.wakeTime || "07:00", timestamp: Date.now() });
+    }
     return `Sleep logged: ${action.data?.duration}h ✓`;
   }
 
   // ── STEPS ──
   if (action.type === "steps_log") {
-    await supabase.from("step_entries").upsert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, count: action.data?.steps || action.data?.count || 0, timestamp: Date.now() });
+    const stepCount = action.data?.steps || action.data?.count || 0;
+    const { data: existingStep } = await supabase.from("step_entries").select("id").eq("user_id", session.user.id).eq("date", today).single();
+    if (existingStep) {
+      await supabase.from("step_entries").update({ count: stepCount, timestamp: Date.now() }).eq("id", existingStep.id);
+    } else {
+      await supabase.from("step_entries").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, count: stepCount, timestamp: Date.now() });
+    }
     return `Steps logged: ${action.data?.steps || action.data?.count} ✓`;
   }
 

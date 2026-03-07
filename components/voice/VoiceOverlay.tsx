@@ -253,6 +253,57 @@ export default function VoiceOverlay() {
                     </div>
                   );
                 }
+                const isSleep = a.type === "sleep_log";
+                const isSteps = a.type === "steps_log";
+                if (isSleep) {
+                  const cur = (editedActions || agentResult.actions)[i]?.data || {};
+                  return (
+                    <div key={i} style={{ background: "white", borderRadius: "12px", padding: "12px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "18px" }}>😴</span>
+                        <p style={{ fontSize: "13px", fontWeight: 700, color: "#111118" }}>Sleep Log</p>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                        <div style={{ background: "#f7f8fc", borderRadius: "10px", padding: "10px", textAlign: "center" as const }}>
+                          <p style={{ fontSize: "9px", fontWeight: 800, color: "#a78bfa", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Hours</p>
+                          <input type="number" step="0.5" value={cur.duration ?? 8} onChange={e => { const u = JSON.parse(JSON.stringify(editedActions || agentResult.actions)); u[i].data.duration = parseFloat(e.target.value)||0; setEditedActions(u); }}
+                            style={{ width: "100%", fontSize: "22px", fontWeight: 900, color: "#111118", border: "none", outline: "none", background: "transparent", textAlign: "center" as const, fontFamily: "inherit", marginTop: "2px" }} />
+                        </div>
+                        <div style={{ background: "#f7f8fc", borderRadius: "10px", padding: "10px", textAlign: "center" as const }}>
+                          <p style={{ fontSize: "9px", fontWeight: 800, color: "#a78bfa", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Quality (1-5)</p>
+                          <input type="number" min="1" max="5" value={cur.quality ?? 3} onChange={e => { const u = JSON.parse(JSON.stringify(editedActions || agentResult.actions)); u[i].data.quality = parseInt(e.target.value)||3; setEditedActions(u); }}
+                            style={{ width: "100%", fontSize: "22px", fontWeight: 900, color: "#111118", border: "none", outline: "none", background: "transparent", textAlign: "center" as const, fontFamily: "inherit", marginTop: "2px" }} />
+                        </div>
+                        <div style={{ background: "#f7f8fc", borderRadius: "10px", padding: "10px", textAlign: "center" as const }}>
+                          <p style={{ fontSize: "9px", fontWeight: 800, color: "#a78bfa", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Bedtime</p>
+                          <input type="time" value={cur.bedtime ?? "23:00"} onChange={e => { const u = JSON.parse(JSON.stringify(editedActions || agentResult.actions)); u[i].data.bedtime = e.target.value; setEditedActions(u); }}
+                            style={{ width: "100%", fontSize: "13px", fontWeight: 700, color: "#111118", border: "none", outline: "none", background: "transparent", textAlign: "center" as const, fontFamily: "inherit", marginTop: "4px" }} />
+                        </div>
+                        <div style={{ background: "#f7f8fc", borderRadius: "10px", padding: "10px", textAlign: "center" as const }}>
+                          <p style={{ fontSize: "9px", fontWeight: 800, color: "#a78bfa", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Wake Time</p>
+                          <input type="time" value={cur.wakeTime ?? "07:00"} onChange={e => { const u = JSON.parse(JSON.stringify(editedActions || agentResult.actions)); u[i].data.wakeTime = e.target.value; setEditedActions(u); }}
+                            style={{ width: "100%", fontSize: "13px", fontWeight: 700, color: "#111118", border: "none", outline: "none", background: "transparent", textAlign: "center" as const, fontFamily: "inherit", marginTop: "4px" }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                if (isSteps) {
+                  const cur = (editedActions || agentResult.actions)[i]?.data || {};
+                  return (
+                    <div key={i} style={{ background: "white", borderRadius: "12px", padding: "12px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                        <span style={{ fontSize: "18px" }}>👟</span>
+                        <p style={{ fontSize: "13px", fontWeight: 700, color: "#111118" }}>Steps</p>
+                      </div>
+                      <div style={{ background: "#f7f8fc", borderRadius: "10px", padding: "12px", textAlign: "center" as const }}>
+                        <p style={{ fontSize: "9px", fontWeight: 800, color: "#22c55e", letterSpacing: "0.1em", textTransform: "uppercase" as const }}>Step Count</p>
+                        <input type="number" value={cur.steps ?? cur.count ?? 0} onChange={e => { const u = JSON.parse(JSON.stringify(editedActions || agentResult.actions)); u[i].data.steps = parseInt(e.target.value)||0; u[i].data.count = parseInt(e.target.value)||0; setEditedActions(u); }}
+                          style={{ width: "100%", fontSize: "28px", fontWeight: 900, color: "#111118", border: "none", outline: "none", background: "transparent", textAlign: "center" as const, fontFamily: "inherit", marginTop: "4px" }} />
+                      </div>
+                    </div>
+                  );
+                }
                 return (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
                     <span style={{ fontSize: "13px" }}>
