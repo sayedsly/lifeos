@@ -63,7 +63,7 @@ export default function StructuredSession({ type, planExercises, lastSession, on
 
   const totalSets = exercises.reduce((s, e) => s + e.sets.length, 0);
   const completedSets = exercises.reduce((s, e) => s + e.sets.filter(s => s.completed).length, 0);
-  const totalVolume = exercises.reduce((s, e) => s + e.sets.filter(s => s.completed).reduce((ss, set) => ss + (set.weight * set.reps), 0), 0);
+  const totalVolume = exercises.reduce((s, e) => s + e.sets.filter(s => s.completed).reduce((ss, set) => ss + ((set.weight || 0) * (set.reps || 0)), 0), 0);
 
   const handleSave = async () => {
     setSaving(true);
