@@ -148,6 +148,7 @@ export default function FriendsPage() {
   const [showCreateChallenge, setShowCreateChallenge] = useState(false);
   const [challengeForm, setChallengeForm] = useState({ title: "", type: "steps", goal: "", days: "7" });
   const [challengeLoading, setChallengeLoading] = useState(false);
+  const [invitedFriends, setInvitedFriends] = useState<string[]>([]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -276,11 +277,15 @@ export default function FriendsPage() {
     const id = Math.random().toString(36).slice(2);
     const start = format(new Date(), "yyyy-MM-dd");
     const end = format(subDays(new Date(), -parseInt(challengeForm.days)), "yyyy-MM-dd");
-    const { error } = await supabase.from("challenges").insert({ id, creator_id: myId, title: challengeForm.title, type: challengeForm.type, goal: parseFloat(challengeForm.goal), start_date: start, end_date: end });
+    const allInvitees = Array.from(new Set([...invitedFriends]));
+    const { error } = await supabase.from("challenges").insert({ id, creator_id: myId, title: challengeForm.title, type: challengeForm.type, goal: parseFloat(challengeForm.goal), start_date: start, end_date: end, invitee_ids: allInvitees });
     if (!error) {
-      await supabase.from("challenge_participants").insert({ id: Math.random().toString(36).slice(2), challenge_id: id, user_id: myId });
+      // Add creator + all invited friends as participants
+      const participants = [myId, ...allInvitees].map(uid => ({ id: Math.random().toString(36).slice(2), challenge_id: id, user_id: uid }));
+      await supabase.from("challenge_participants").insert(participants);
       setShowCreateChallenge(false);
       setChallengeForm({ title: "", type: "steps", goal: "", days: "7" });
+      setInvitedFriends([]);
       const friendIds = friends.map((f: any) => f.requester_id === myId ? f.addressee_id : f.requester_id);
       await loadChallenges(myId, [...friendIds, myId]);
     }
@@ -450,8 +455,29 @@ export default function FriendsPage() {
               </div>
               <input placeholder={`Goal (${challengeTypes.find(t => t.value === challengeForm.type)?.unit})`} value={challengeForm.goal} onChange={e => setChallengeForm(f => ({ ...f, goal: e.target.value }))} type="number"
                 style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid #f1f5f9", fontSize: "14px", color: "#111118", outline: "none", fontFamily: "inherit" }} />
+              {friends.length > 0 && (
+                <div>
+                  <p style={{ fontSize: "9px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase" as const, marginBottom: "8px" }}>Invite Friends</p>
+                  <div style={{ display: "flex", flexDirection: "column" as const, gap: "6px" }}>
+                    {friends.map((f: any) => {
+                      const fid = f.requester_id === myId ? f.addressee_id : f.requester_id;
+                      const selected = invitedFriends.includes(fid);
+                      return (
+                        <button key={fid} onClick={() => setInvitedFriends(prev => selected ? prev.filter(id => id !== fid) : [...prev, fid])}
+                          style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderRadius: "12px", border: `2px solid ${selected ? "#6366f1" : "#f1f5f9"}`, background: selected ? "#eef2ff" : "white", cursor: "pointer", textAlign: "left" as const }}>
+                          <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: selected ? "#6366f1" : "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                            <p style={{ color: selected ? "white" : "#111118", fontWeight: 700, fontSize: "12px" }}>{f.otherUser.username?.[0]?.toUpperCase()}</p>
+                          </div>
+                          <p style={{ flex: 1, color: "#111118", fontWeight: 600, fontSize: "13px" }}>{f.otherUser.username}</p>
+                          {selected && <span style={{ color: "#6366f1", fontSize: "16px" }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <button onClick={createChallenge} disabled={challengeLoading} style={{ padding: "14px", borderRadius: "12px", background: "#6366f1", color: "white", border: "none", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
-                {challengeLoading ? "Creating..." : "Create & Invite Friends"}
+                {challengeLoading ? "Creating..." : `Create${invitedFriends.length > 0 ? ` & Invite ${invitedFriends.length} Friend${invitedFriends.length > 1 ? "s" : ""}` : ""}`}
               </button>
             </div>
           )}

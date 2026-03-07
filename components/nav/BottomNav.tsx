@@ -12,6 +12,7 @@ const ALL_MODULES = [
   { key: "workout", label: "Workout", href: "/workout", emoji: "💪" },
   { key: "finance", label: "Finance", href: "/finance", emoji: "💰" },
   { key: "recap", label: "Recap", href: "/recap", emoji: "📊" },
+  { key: "achievements", label: "Progress", href: "/achievements", emoji: "🏆" },
 ];
 
 export default function BottomNav() {

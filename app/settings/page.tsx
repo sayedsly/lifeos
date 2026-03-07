@@ -141,6 +141,7 @@ export default function SettingsPage() {
           { key: "nutrition", label: "Nutrition" },
           { key: "tasks", label: "Tasks" },
           { key: "friends", label: "Friends" },
+          { key: "achievements", label: "Achievements" },
           { key: "workout", label: "Workout" },
           { key: "finance", label: "Finance" },
         ];
