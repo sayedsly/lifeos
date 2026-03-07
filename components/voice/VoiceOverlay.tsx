@@ -429,10 +429,19 @@ export default function VoiceOverlay() {
                     style={{ width: 44, height: 44, borderRadius: "12px", background: "#f1f5f9", border: "none", color: "#9ca3af", fontSize: "16px", cursor: "pointer", flexShrink: 0 }}>✕</button>
                 </div>
               ) : (
-                <button onClick={() => setShowFollowUp(true)}
-                  style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: "4px 8px", borderRadius: "8px" }}>
-                  ↩ follow up
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <button onClick={() => setShowFollowUp(true)}
+                    style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: "4px 8px", borderRadius: "8px" }}>
+                    ↩ follow up
+                  </button>
+                  <button onClick={() => imageInputRef.current?.click()}
+                    style={{ background: "#f1f5f9", border: "none", borderRadius: "8px", padding: "4px 10px", fontSize: "14px", cursor: "pointer" }}
+                    title="Analyze food photo">
+                    📷
+                  </button>
+                  <input ref={imageInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }}
+                    onChange={e => { if (e.target.files?.[0]) handleImageUpload(e.target.files[0]); }} />
+                </div>
               )}
             </div>
           )}
