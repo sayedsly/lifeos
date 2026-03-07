@@ -405,7 +405,6 @@ export default function FinancePage() {
         </div>
       )}
     </div>
-  );
     {editingGoal && (
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "24px" }} onClick={() => setEditingGoal(null)}>
         <div style={{ background: "white", borderRadius: "24px", padding: "24px", width: "100%", maxWidth: "360px" }} onClick={e => e.stopPropagation()}>
@@ -421,5 +420,6 @@ export default function FinancePage() {
         </div>
       </div>
     )}
+    </>
   );
 }
