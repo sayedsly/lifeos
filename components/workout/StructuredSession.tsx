@@ -78,6 +78,7 @@ export default function StructuredSession({ type, planExercises, lastSession, on
         duration: Math.floor(elapsed / 60),
         intensity,
         exercises,
+        completed: true,
         timestamp: Date.now(),
       };
       await supabase.from("workout_sessions").insert({ ...workoutSession, user_id: authSession.user.id });
