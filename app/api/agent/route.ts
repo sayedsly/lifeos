@@ -134,11 +134,13 @@ RULES:
 - Keep responses under 180 words, warm and direct
 - Use the user's actual data numbers in responses
 
-If the user shares something worth remembering long-term (preferences, habits, goals, schedule), include it as:
-MEMORY:["fact 1","fact 2"]
-Say "I'll remember that" when you store something. Only store genuinely useful persistent facts.
+MEMORY RULE (MANDATORY): Any time the user mentions a personal preference, habit, hobby, schedule, goal, or fact about themselves — you MUST output a MEMORY line. This is non-negotiable.
+Examples: "I like Pokemon" → MEMORY:["User's hobby is Pokemon"]
+"I wake up at 6am" → MEMORY:["User wakes up at 6am"]
+"I'm cutting" → MEMORY:["User is in a calorie deficit / cutting phase"]
+Say "Got it, I'll remember that! 🧠" when storing a memory.
 
-Return format (STRICT — always valid JSON at end):
+Return format (STRICT — always include all three lines):
 ACTIONS:[{"type":"action_type","data":{...}},{"type":"action_type2","data":{...}}]
 FOLLOWUP:true or FOLLOWUP:false`;
 
@@ -156,6 +158,7 @@ FOLLOWUP:true or FOLLOWUP:false`;
 
     const geminiData = await geminiRes.json();
     const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    console.log("[Agent raw]", raw.slice(0, 500));
 
     // Parse ACTIONS and FOLLOWUP from response
     let actions: any[] = [];
