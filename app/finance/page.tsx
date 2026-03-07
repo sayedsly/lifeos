@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { getFinanceGoals, addFinanceGoal, getFinanceTransactions, addFinanceTransaction } from "@/lib/supabase/queries";
+import { supabase } from "@/lib/supabase/client";
 import { computeMomentum } from "@/lib/momentum/engine";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import type { FinanceGoal, FinanceTransaction } from "@/types";
