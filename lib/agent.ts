@@ -207,8 +207,23 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
     for (const g of goals) {
       const { data: existing } = await supabase.from("finance_goals").select("*").eq("user_id", session.user.id).ilike("name", `%${g.name}%`).single();
       if (existing) {
-        const newAmount = g.setAmount !== undefined ? g.setAmount : (existing.current + (g.addAmount || 0) - (g.subtractAmount || 0));
-        await supabase.from("finance_goals").update({ current: Math.max(0, newAmount), target: g.targetAmount || existing.target }).eq("id", existing.id);
+        // Update target if provided
+        if (g.targetAmount) await supabase.from("finance_goals").update({ target: g.targetAmount }).eq("id", existing.id);
+        // Add/subtract via transaction so progress bar updates
+        const amount = g.addAmount || g.subtractAmount || 0;
+        if (amount > 0) {
+          await supabase.from("finance_transactions").insert({
+            id: Math.random().toString(36).slice(2),
+            user_id: session.user.id,
+            date: today,
+            timestamp: Date.now(),
+            amount,
+            type: g.subtractAmount ? "expense" : "income",
+            category: "Savings",
+            description: `${g.subtractAmount ? "Spent from" : "Added to"} ${existing.name}`,
+            goal_id: existing.id,
+          });
+        }
       }
     }
     return `Goal${goals.length > 1 ? "s" : ""} updated ✓`;
