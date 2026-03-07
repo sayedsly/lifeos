@@ -37,8 +37,12 @@ export default function AchievementsPage() {
   const [moodNote, setMoodNote] = useState("");
   const [moodSaved, setMoodSaved] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUploadError, setPhotoUploadError] = useState("");
   const [photoNote, setPhotoNote] = useState("");
   const [photoWeight, setPhotoWeight] = useState("");
+  const [photoCategory, setPhotoCategory] = useState("body");
+  const [filterCategory, setFilterCategory] = useState("all");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [compareMode, setCompareMode] = useState(false);
   const [compareA, setCompareA] = useState<string | null>(null);
   const [compareB, setCompareB] = useState<string | null>(null);
@@ -93,16 +97,23 @@ export default function AchievementsPage() {
 
   const uploadPhoto = async (file: File) => {
     setPhotoUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${userId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from("progress-photos").upload(path, file);
-    if (error) { setPhotoUploading(false); return; }
-    const { data: urlData } = supabase.storage.from("progress-photos").getPublicUrl(path);
-    const today = format(new Date(), "yyyy-MM-dd");
-    await supabase.from("progress_photos").insert({ id: Math.random().toString(36).slice(2), user_id: userId, date: today, url: urlData.publicUrl, note: photoNote, weight: photoWeight ? parseFloat(photoWeight) : null });
-    setPhotoNote(""); setPhotoWeight("");
-    setPhotoUploading(false);
-    loadAll(userId);
+    setPhotoUploadError("");
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${userId}/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("progress-photos").upload(path, file, { upsert: true });
+      if (uploadError) { setPhotoUploadError("Upload failed: " + uploadError.message); setPhotoUploading(false); return; }
+      const { data: urlData } = supabase.storage.from("progress-photos").getPublicUrl(path);
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { error: dbError } = await supabase.from("progress_photos").insert({ id: Math.random().toString(36).slice(2), user_id: userId, date: today, url: urlData.publicUrl, note: photoNote, weight: photoWeight ? parseFloat(photoWeight) : null, category: photoCategory });
+      if (dbError) { setPhotoUploadError("Save failed: " + dbError.message); setPhotoUploading(false); return; }
+      setPhotoNote(""); setPhotoWeight(""); setPhotoCategory("body");
+      setPhotoUploading(false);
+      loadAll(userId);
+    } catch (e: any) {
+      setPhotoUploadError("Error: " + e.message);
+      setPhotoUploading(false);
+    }
   };
 
   const earnedTypes = new Set(achievements.map(a => a.type));
@@ -221,17 +232,43 @@ export default function AchievementsPage() {
           <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
             <p style={{ fontSize: "9px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase", marginBottom: "12px" }}>Add Progress Photo</p>
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {[{v:"body",l:"💪 Body"},{v:"food",l:"🥗 Food"},{v:"workout",l:"🏋️ Workout"},{v:"other",l:"📸 Other"}].map(c => (
+                  <button key={c.v} onClick={() => setPhotoCategory(c.v)}
+                    style={{ flex: 1, padding: "8px 4px", borderRadius: "10px", border: `2px solid ${photoCategory === c.v ? "#6366f1" : "#f1f5f9"}`, background: photoCategory === c.v ? "#eef2ff" : "white", fontSize: "10px", fontWeight: 700, color: photoCategory === c.v ? "#6366f1" : "#9ca3af", cursor: "pointer" }}>
+                    {c.l}
+                  </button>
+                ))}
+              </div>
               <input placeholder="Note (optional)" value={photoNote} onChange={e => setPhotoNote(e.target.value)}
                 style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid #f1f5f9", fontSize: "13px", color: "#111118", outline: "none", fontFamily: "inherit" }} />
-              <input placeholder="Weight (optional, e.g. 175)" value={photoWeight} onChange={e => setPhotoWeight(e.target.value)} type="number"
+              <input placeholder="Weight (optional, e.g. 175 lbs)" value={photoWeight} onChange={e => setPhotoWeight(e.target.value)} type="number"
                 style={{ padding: "12px 16px", borderRadius: "12px", border: "1px solid #f1f5f9", fontSize: "13px", color: "#111118", outline: "none", fontFamily: "inherit" }} />
+              {photoUploadError && <p style={{ fontSize: "12px", color: "#ef4444", fontWeight: 600 }}>{photoUploadError}</p>}
               <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={e => { if (e.target.files?.[0]) uploadPhoto(e.target.files[0]); }} />
               <button onClick={() => fileRef.current?.click()} disabled={photoUploading}
-                style={{ padding: "14px", borderRadius: "12px", background: "#111118", color: "white", border: "none", fontWeight: 700, fontSize: "13px", cursor: "pointer" }}>
-                {photoUploading ? "Uploading..." : "📷 Choose Photo"}
+                style={{ padding: "14px", borderRadius: "12px", background: photoUploading ? "#9ca3af" : "#111118", color: "white", border: "none", fontWeight: 700, fontSize: "13px", cursor: photoUploading ? "default" : "pointer" }}>
+                {photoUploading ? "Uploading... ⏳" : "📷 Choose Photo"}
               </button>
             </div>
           </div>
+
+          {photos.length > 0 && (
+            <div style={{ background: "white", borderRadius: "16px", padding: "14px 16px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", display: "flex", gap: "8px", flexWrap: "wrap" as const, alignItems: "center" }}>
+              <div style={{ display: "flex", gap: "4px", flex: 1, flexWrap: "wrap" as const }}>
+                {[{v:"all",l:"All"},{v:"body",l:"💪"},{v:"food",l:"🥗"},{v:"workout",l:"🏋️"},{v:"other",l:"📸"}].map(c => (
+                  <button key={c.v} onClick={() => setFilterCategory(c.v)}
+                    style={{ padding: "6px 12px", borderRadius: "8px", border: "none", background: filterCategory === c.v ? "#111118" : "#f1f5f9", color: filterCategory === c.v ? "white" : "#6b7280", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
+                    {c.l}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setSortOrder(s => s === "newest" ? "oldest" : "newest")}
+                style={{ padding: "6px 12px", borderRadius: "8px", border: "none", background: "#f1f5f9", color: "#6b7280", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
+                {sortOrder === "newest" ? "↓ Newest" : "↑ Oldest"}
+              </button>
+            </div>
+          )}
 
           {photos.length >= 2 && (
             <button onClick={() => { setCompareMode(!compareMode); setCompareA(null); setCompareB(null); }}
@@ -259,7 +296,10 @@ export default function AchievementsPage() {
           )}
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            {photos.map(p => {
+            {[...photos]
+              .filter(p => filterCategory === "all" || (p as any).category === filterCategory)
+              .sort((a, b) => sortOrder === "newest" ? new Date(b.date).getTime() - new Date(a.date).getTime() : new Date(a.date).getTime() - new Date(b.date).getTime())
+              .map(p => {
               const isSelectedA = compareA === p.id;
               const isSelectedB = compareB === p.id;
               const isSelected = isSelectedA || isSelectedB;

@@ -88,7 +88,7 @@ export default function SettingsPage() {
       </div>
 
       <div style={{ background: "white", border: "none", borderRadius: "24px", overflow: "hidden" }}>
-        {[{ href: "/workout", label: "💪 Workout" }, { href: "/finance", label: "💰 Finance & Goals" }, { href: "/nutrition", label: "🥗 Nutrition" }, { href: "/tasks", label: "✅ Tasks" }, { href: "/friends", label: "👥 Friends" }].map(({ href, label }, i, arr) => (
+        {[{ href: "/workout", label: "💪 Workout" }, { href: "/finance", label: "💰 Finance & Goals" }, { href: "/nutrition", label: "🥗 Nutrition" }, { href: "/tasks", label: "✅ Tasks" }, { href: "/friends", label: "👥 Friends" }, { href: "/achievements", label: "🏆 Achievements" }].map(({ href, label }, i, arr) => (
           <Link key={href} href={href} style={{ display: "block", padding: "16px 20px", color: "#9ca3af", fontSize: "13px", fontWeight: 500, textDecoration: "none", borderBottom: i < arr.length - 1 ? "1px solid #27272a" : "none" }}>
             {label} →
           </Link>
