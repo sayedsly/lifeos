@@ -14,6 +14,19 @@ import type { UserSettings } from "@/types";
 const DEFAULT_WEIGHTS = { nutrition: 30, workout: 20, sleep: 15, tasks: 15, finance: 10, steps: 10 };
 
 export default function SettingsPage() {
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== "undefined") return document.body.classList.contains("dark-mode");
+    return false;
+  });
+
+  const toggleDark = () => {
+    const next = !darkMode;
+    setDarkMode(next);
+    if (next) document.body.classList.add("dark-mode");
+    else document.body.classList.remove("dark-mode");
+    localStorage.setItem("lifeos-dark", next ? "1" : "0");
+  };
+
   const [isOwner, setIsOwner] = useState(false);
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -218,6 +231,49 @@ export default function SettingsPage() {
       </button>
 
       <HealthSync />
+
+
+      {/* ── APPEARANCE ── */}
+      <div style={{ background: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+        <p style={{ fontSize: "9px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase" as const, padding: "16px 20px 8px" }}>Appearance</p>
+        <div style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderTop: "1px solid #f1f5f9" }}>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: "14px", fontWeight: 600, color: "#111118" }}>Dark Mode</p>
+            <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "2px" }}>Easy on the eyes at night</p>
+          </div>
+          <button onClick={toggleDark} style={{ width: "48px", height: "28px", borderRadius: "99px", background: darkMode ? "#6366f1" : "#e5e7eb", border: "none", cursor: "pointer", position: "relative" as const, transition: "background 0.2s" }}>
+            <div style={{ position: "absolute" as const, top: "3px", left: darkMode ? "23px" : "3px", width: "22px", height: "22px", borderRadius: "50%", background: "white", transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── DATA EXPORT ── */}
+      <div style={{ background: "white", borderRadius: "20px", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+        <p style={{ fontSize: "9px", fontWeight: 800, letterSpacing: "0.2em", color: "#9ca3af", textTransform: "uppercase" as const, padding: "16px 20px 8px" }}>Export Data</p>
+        {[
+          { key: "nutrition", label: "🥗 Nutrition" },
+          { key: "sleep", label: "😴 Sleep" },
+          { key: "hydration", label: "💧 Hydration" },
+          { key: "steps", label: "👟 Steps" },
+          { key: "workouts", label: "💪 Workouts" },
+          { key: "weight", label: "⚖️ Body Weight" },
+          { key: "tasks", label: "✅ Tasks" },
+          { key: "finance", label: "💰 Finance" },
+          { key: "mood", label: "😊 Mood" },
+        ].map(({ key, label }, i, arr) => (
+          <div key={key} style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderTop: "1px solid #f1f5f9" }}>
+            <p style={{ flex: 1, fontSize: "14px", fontWeight: 600, color: "#111118" }}>{label}</p>
+            <button onClick={async () => {
+              const { data: { session } } = await import("@/lib/supabase/client").then(m => m.supabase.auth.getSession());
+              if (!session) return;
+              const url = `/api/export?domain=${key}&userId=${session.user.id}&accessToken=${session.access_token}&days=90`;
+              const a = document.createElement("a"); a.href = url; a.download = `lifeos-${key}.csv`; a.click();
+            }} style={{ padding: "8px 16px", borderRadius: "10px", background: "#f1f5f9", border: "none", color: "#111118", fontWeight: 700, fontSize: "11px", cursor: "pointer" }}>
+              CSV ↓
+            </button>
+          </div>
+        ))}
+      </div>
 
       <button onClick={async () => { await signOut(); router.push("/auth"); }} style={{
         width: "100%", padding: "14px", borderRadius: "20px", background: "none",

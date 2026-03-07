@@ -12,6 +12,13 @@ function Shell() {
   const redirected = useRef(false);
 
   useEffect(() => {
+    // Init dark mode from localStorage
+    if (localStorage.getItem("lifeos-dark") === "1") {
+      document.body.classList.add("dark-mode");
+    }
+  }, []);
+
+  useEffect(() => {
     if (loading) return;
     if (!user && pathname !== "/auth" && !redirected.current) {
       redirected.current = true;
