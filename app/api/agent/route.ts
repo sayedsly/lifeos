@@ -166,6 +166,7 @@ FOLLOWUP:true or FOLLOWUP:false`;
     const followupMatch = raw.match(/FOLLOWUP:\s*(true|false)/i);
     if (followupMatch) needsFollowUp = followupMatch[1].toLowerCase() === "true";
 
+    console.log("[Full raw]", raw);
     // Strip ACTIONS block
     const actionsIdx = raw.indexOf("ACTIONS:");
     if (actionsIdx >= 0) {
@@ -173,7 +174,7 @@ FOLLOWUP:true or FOLLOWUP:false`;
       try {
         const parsed = JSON.parse(actionsStr);
         actions = Array.isArray(parsed) ? parsed.filter((a: any) => a.type !== "none") : [];
-      } catch (e) { console.error("Actions parse error:", e); }
+      } catch (e) { console.error("Actions parse error:", e, "\nStr was:", actionsStr.slice(0, 300)); }
       // Text is everything before ACTIONS, strip FOLLOWUP line too
       text = raw.slice(0, actionsIdx).trim();
     }
