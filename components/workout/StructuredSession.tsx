@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase/client";
 import { computeMomentum } from "@/lib/momentum/engine";
 import { useLifeStore } from "@/store/useLifeStore";
 import ExerciseBlock from "./ExerciseBlock";
-import RPESelector from "./RPESelector";
 import { format } from "date-fns";
 
 interface Props {
@@ -21,16 +20,19 @@ export default function StructuredSession({ type, planExercises, lastSession, on
   const [exercises, setExercises] = useState<WorkoutExercise[]>([]);
   const [intensity, setIntensity] = useState(7);
   const [elapsed, setElapsed] = useState(0);
-  const [customExercise, setCustomExercise] = useState("");
-  const [showOverload, setShowOverload] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
+  const [saving, setSaving] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { refreshMomentum } = useLifeStore();
-  const suggestions = COMMON_EXERCISES[type] || [];
+  const allSuggestions = COMMON_EXERCISES[type] || [];
+  const filtered = search.trim()
+    ? allSuggestions.filter((e: string) => e.toLowerCase().includes(search.toLowerCase()))
+    : allSuggestions;
 
   useEffect(() => {
-    // Pre-load plan exercises if available
     if (planExercises && planExercises.length > 0) {
-      const loaded: WorkoutExercise[] = planExercises.map((e: any) => ({
+      setExercises(planExercises.map((e: any) => ({
         id: Math.random().toString(36).slice(2),
         name: e.name,
         sets: Array.from({ length: e.sets || 3 }, () => ({
@@ -40,9 +42,7 @@ export default function StructuredSession({ type, planExercises, lastSession, on
           weight: e.weight || 0,
           completed: false,
         })),
-      }));
-      setExercises(loaded);
-      if (lastSession) setShowOverload(true);
+      })));
     }
     timerRef.current = setInterval(() => setElapsed(e => e + 1), 1000);
     return () => clearInterval(timerRef.current!);
@@ -52,146 +52,147 @@ export default function StructuredSession({ type, planExercises, lastSession, on
 
   const addExercise = (name: string) => {
     if (!name.trim()) return;
-    const ex: WorkoutExercise = {
+    setExercises(prev => [...prev, {
       id: Math.random().toString(36).slice(2),
       name: name.trim(),
       sets: [{ id: Math.random().toString(36).slice(2), exerciseId: Math.random().toString(36).slice(2), reps: 8, weight: 0, completed: false }],
-    };
-    setExercises(prev => [...prev, ex]);
-    setCustomExercise("");
+    }]);
+    setSearch("");
+    setShowSearch(false);
   };
 
-  const finish = async () => {
-    clearInterval(timerRef.current!);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from("workout_sessions").insert({
-      id: Math.random().toString(36).slice(2),
-      user_id: user.id,
-      date: format(new Date(), "yyyy-MM-dd"),
-      timestamp: Date.now(),
-      type, duration: Math.round(elapsed / 60),
-      intensity, exercises, completed: true,
-    });
-    await computeMomentum(format(new Date(), "yyyy-MM-dd"));
-    refreshMomentum();
-    onSave();
-  };
+  const totalSets = exercises.reduce((s, e) => s + e.sets.length, 0);
+  const completedSets = exercises.reduce((s, e) => s + e.sets.filter(s => s.completed).length, 0);
+  const totalVolume = exercises.reduce((s, e) => s + e.sets.filter(s => s.completed).reduce((ss, set) => ss + (set.weight * set.reps), 0), 0);
 
-  const totalSets = exercises.reduce((sum, e) => sum + e.sets.length, 0);
-  const completedSets = exercises.reduce((sum, e) => sum + e.sets.filter(s => s.completed).length, 0);
-  const totalVolume = exercises.reduce((sum, e) => sum + e.sets.reduce((s2, s) => s2 + (s.completed ? (s.weight || 0) * (s.reps || 0) : 0), 0), 0);
-
-  // Build progressive overload suggestions from last session
-  const overloadMap: Record<string, { weight: number; reps: number; suggestion: string }> = {};
-  if (lastSession?.exercises) {
-    for (const ex of lastSession.exercises) {
-      const completedSets = ex.sets?.filter((s: any) => s.completed) || [];
-      if (completedSets.length === 0) continue;
-      const avgWeight = completedSets.reduce((a: number, s: any) => a + (s.weight || 0), 0) / completedSets.length;
-      const avgReps = completedSets.reduce((a: number, s: any) => a + (s.reps || 0), 0) / completedSets.length;
-      const suggestWeight = avgReps >= 10 ? Math.round((avgWeight + 5) * 2) / 2 : avgWeight;
-      const suggestReps = avgReps < 8 ? Math.round(avgReps + 1) : avgReps;
-      overloadMap[ex.name] = {
-        weight: Math.round(avgWeight * 10) / 10,
-        reps: Math.round(avgReps),
-        suggestion: avgReps >= 10
-          ? `Last: ${Math.round(avgWeight)}lbs × ${Math.round(avgReps)} → Try ${suggestWeight}lbs`
-          : `Last: ${Math.round(avgWeight)}lbs × ${Math.round(avgReps)} → Try ${suggestReps} reps`,
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      if (!authSession) return;
+      const today = format(new Date(), "yyyy-MM-dd");
+      const workoutSession: WorkoutSession = {
+        id: Math.random().toString(36).slice(2),
+        date: today,
+        type,
+        duration: Math.floor(elapsed / 60),
+        intensity,
+        exercises,
+        timestamp: Date.now(),
       };
+      await supabase.from("workout_sessions").insert({ ...workoutSession, user_id: authSession.user.id });
+      const allEntries = await supabase.from("nutrition_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
+      const allSleep = await supabase.from("sleep_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
+      const allHydration = await supabase.from("hydration_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
+      const allSteps = await supabase.from("step_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
+      const allTasks = await supabase.from("tasks").select("*").eq("user_id", authSession.user.id).eq("date", today);
+      const settings = await supabase.from("user_settings").select("*").eq("user_id", authSession.user.id).single();
+      const s = settings.data || {};
+      const score = computeMomentum({
+        nutrition: allEntries.data || [],
+        sleep: allSleep.data?.[0] || null,
+        hydration: allHydration.data || [],
+        steps: allSteps.data?.[0] || null,
+        tasks: allTasks.data || [],
+        workout: workoutSession,
+        settings: s,
+      });
+      await supabase.from("momentum_snapshots").upsert({ id: Math.random().toString(36).slice(2), user_id: authSession.user.id, date: today, score: score.total, breakdown: score.breakdown, timestamp: Date.now() });
+      refreshMomentum();
+      onSave();
+    } finally {
+      setSaving(false);
     }
-  }
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Timer + stats */}
-      <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", textAlign: "center" }}>
-          <div>
-            <p style={{ fontSize: "24px", fontWeight: 700, color: "white" }}>{formatTime(elapsed)}</p>
-            <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "4px" }}>Duration</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "24px", fontWeight: 700, color: "white" }}>{completedSets}/{totalSets}</p>
-            <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "4px" }}>Sets</p>
-          </div>
-          <div>
-            <p style={{ fontSize: "24px", fontWeight: 700, color: "white" }}>{totalVolume.toLocaleString()}</p>
-            <p style={{ fontSize: "9px", color: "#52525b", textTransform: "uppercase", letterSpacing: "0.1em", marginTop: "4px" }}>Volume lbs</p>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+      {/* Stats bar */}
+      <div style={{ background: "#18181b", borderRadius: "18px", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ textAlign: "center" as const }}>
+          <p style={{ color: "#a78bfa", fontSize: "18px", fontWeight: 900 }}>{formatTime(elapsed)}</p>
+          <p style={{ color: "#52525b", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Time</p>
+        </div>
+        <div style={{ textAlign: "center" as const }}>
+          <p style={{ color: "white", fontSize: "18px", fontWeight: 900 }}>{completedSets}<span style={{ color: "#52525b", fontSize: "12px" }}>/{totalSets}</span></p>
+          <p style={{ color: "#52525b", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Sets</p>
+        </div>
+        <div style={{ textAlign: "center" as const }}>
+          <p style={{ color: "white", fontSize: "18px", fontWeight: 900 }}>{totalVolume > 0 ? `${(totalVolume/1000).toFixed(1)}k` : "0"}</p>
+          <p style={{ color: "#52525b", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Volume</p>
+        </div>
+        <div style={{ textAlign: "center" as const }}>
+          <p style={{ color: "white", fontSize: "18px", fontWeight: 900 }}>{exercises.length}</p>
+          <p style={{ color: "#52525b", fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Exercises</p>
         </div>
       </div>
 
-      {/* Progressive overload banner */}
-      {showOverload && Object.keys(overloadMap).length > 0 && (
-        <div style={{ background: "#18181b", border: "1px solid #3b82f6", borderRadius: "20px", padding: "16px 20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-            <p style={{ fontSize: "9px", fontWeight: 700, letterSpacing: "0.2em", color: "#3b82f6", textTransform: "uppercase" }}>⚡ Progressive Overload</p>
-            <button onClick={() => setShowOverload(false)} style={{ background: "none", border: "none", color: "#52525b", fontSize: "16px", cursor: "pointer" }}>×</button>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {Object.entries(overloadMap).map(([name, data]) => (
-              <div key={name} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <p style={{ color: "white", fontSize: "12px", fontWeight: 600 }}>{name}</p>
-                <p style={{ color: "#a1a1aa", fontSize: "11px" }}>{data.suggestion}</p>
-              </div>
+      {/* Exercise blocks */}
+      {exercises.map((ex, i) => {
+        const lastEx = lastSession?.exercises?.find((e: any) => e.name === ex.name);
+        return (
+          <ExerciseBlock key={ex.id} exercise={ex} lastExercise={lastEx}
+            onChange={updated => setExercises(prev => prev.map((e, j) => j === i ? updated : e))}
+            onDelete={() => setExercises(prev => prev.filter((_, j) => j !== i))}
+          />
+        );
+      })}
+
+      {/* Add exercise */}
+      {showSearch ? (
+        <div style={{ background: "#18181b", borderRadius: "18px", padding: "14px" }}>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search exercise..."
+            autoFocus
+            onKeyDown={e => { if (e.key === "Enter" && search.trim()) addExercise(search.trim()); }}
+            style={{ width: "100%", background: "#27272a", border: "none", borderRadius: "12px", padding: "12px 14px", color: "white", fontSize: "14px", fontWeight: 600, outline: "none", fontFamily: "inherit", marginBottom: "10px", boxSizing: "border-box" as const }} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {filtered.slice(0, 12).map((name: string) => (
+              <button key={name} onClick={() => addExercise(name)} style={{
+                padding: "6px 12px", background: "#27272a", border: "none", borderRadius: "10px",
+                color: "#d4d4d8", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
+              }}>{name}</button>
             ))}
+            {search.trim() && !filtered.includes(search.trim()) && (
+              <button onClick={() => addExercise(search.trim())} style={{
+                padding: "6px 12px", background: "#7c3aed", border: "none", borderRadius: "10px",
+                color: "white", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit"
+              }}>+ Add "{search.trim()}"</button>
+            )}
           </div>
+          <button onClick={() => setShowSearch(false)} style={{ marginTop: "10px", background: "none", border: "none", color: "#52525b", fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
         </div>
+      ) : (
+        <button onClick={() => setShowSearch(true)} style={{
+          padding: "14px", borderRadius: "16px", border: "1.5px dashed #27272a", background: "transparent",
+          color: "#52525b", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em",
+          cursor: "pointer", fontFamily: "inherit"
+        }}>+ Add Exercise</button>
       )}
 
-      {/* Exercise suggestions */}
-      {suggestions.length > 0 && (
-        <div>
-          <p style={{ fontSize: "9px", fontWeight: 600, letterSpacing: "0.2em", color: "#52525b", textTransform: "uppercase", marginBottom: "8px" }}>Add Exercise</p>
-          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "8px" }}>
-            {suggestions.map(s => (
-              <button key={s} onClick={() => addExercise(s)}
-                style={{ padding: "8px 12px", borderRadius: "10px", background: "#18181b", border: "1px solid #27272a", color: "#a1a1aa", fontSize: "12px", cursor: "pointer" }}>
-                {s}
-              </button>
-            ))}
-          </div>
+      {/* Intensity */}
+      <div style={{ background: "#18181b", borderRadius: "18px", padding: "16px 18px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <p style={{ color: "#a1a1aa", fontSize: "11px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Intensity</p>
+          <p style={{ color: "white", fontSize: "20px", fontWeight: 900 }}>{intensity}<span style={{ color: "#52525b", fontSize: "12px" }}>/10</span></p>
         </div>
-      )}
-
-      <div style={{ display: "flex", gap: "8px" }}>
-        <input placeholder="Custom exercise..." value={customExercise} onChange={e => setCustomExercise(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && addExercise(customExercise)}
-          style={{ flex: 1, background: "#18181b", border: "1px solid #27272a", borderRadius: "14px", padding: "12px 16px", color: "white", fontSize: "14px", outline: "none" }} />
-        <button onClick={() => addExercise(customExercise)}
-          style={{ padding: "12px 16px", borderRadius: "14px", background: "#27272a", color: "#a1a1aa", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, border: "none", cursor: "pointer" }}>
-          Add
-        </button>
+        <input type="range" min={1} max={10} value={intensity} onChange={e => setIntensity(parseInt(e.target.value))}
+          style={{ width: "100%", accentColor: "#a78bfa" }} />
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: "4px" }}>
+          <p style={{ color: "#52525b", fontSize: "9px", fontWeight: 700 }}>Easy</p>
+          <p style={{ color: "#52525b", fontSize: "9px", fontWeight: 700 }}>Max Effort</p>
+        </div>
       </div>
 
-      {exercises.map((ex, i) => (
-        <div key={ex.id}>
-          {overloadMap[ex.name] && (
-            <p style={{ fontSize: "10px", color: "#3b82f6", marginBottom: "4px", paddingLeft: "4px" }}>
-              ⚡ {overloadMap[ex.name].suggestion}
-            </p>
-          )}
-          <ExerciseBlock exercise={ex} onChange={updated => {
-            const list = [...exercises]; list[i] = updated; setExercises(list);
-          }} />
-        </div>
-      ))}
-
-      {exercises.length > 0 && (
-        <div style={{ background: "#18181b", border: "1px solid #27272a", borderRadius: "24px", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          <RPESelector value={intensity} onChange={setIntensity} />
-          <button onClick={finish}
-            style={{ width: "100%", padding: "16px", borderRadius: "16px", background: "white", color: "black", fontWeight: 700, fontSize: "12px", letterSpacing: "0.1em", textTransform: "uppercase" as const, border: "none", cursor: "pointer" }}>
-            Finish Workout
-          </button>
-        </div>
-      )}
-
-      <button onClick={onCancel}
-        style={{ width: "100%", padding: "12px", background: "none", border: "none", color: "#52525b", fontSize: "11px", letterSpacing: "0.1em", textTransform: "uppercase" as const, cursor: "pointer" }}>
-        Cancel Session
-      </button>
+      {/* Actions */}
+      <div style={{ display: "flex", gap: "8px", paddingBottom: "20px" }}>
+        <button onClick={onCancel} style={{ flex: 1, padding: "14px", borderRadius: "14px", background: "#18181b", border: "none", color: "#71717a", fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+        <button onClick={handleSave} disabled={saving || exercises.length === 0} style={{
+          flex: 2, padding: "14px", borderRadius: "14px", border: "none", fontWeight: 800, fontSize: "14px", cursor: "pointer", fontFamily: "inherit",
+          background: exercises.length === 0 ? "#27272a" : "linear-gradient(135deg,#7c3aed,#6d28d9)",
+          color: exercises.length === 0 ? "#52525b" : "white"
+        }}>{saving ? "Saving..." : `Finish Workout${completedSets > 0 ? ` · ${completedSets} sets` : ""}`}</button>
+      </div>
     </div>
   );
 }

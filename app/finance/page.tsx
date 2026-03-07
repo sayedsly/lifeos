@@ -32,6 +32,9 @@ export default function FinancePage() {
   const [entries, setEntries] = useState<FinanceTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingGoal, setEditingGoal] = useState<any>(null);
+  const [depositGoal, setDepositGoal] = useState<any>(null);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositType, setDepositType] = useState<'add'|'subtract'>('add');
   const [editGoalName, setEditGoalName] = useState("");
   const [editGoalTarget, setEditGoalTarget] = useState("");
   const [tab, setTab] = useState<Tab>("overview");
@@ -92,6 +95,28 @@ export default function FinancePage() {
   };
 
   const categories = addType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
+  const handleDeposit = async () => {
+    if (!depositGoal || !depositAmount) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
+    const amt = parseFloat(depositAmount);
+    if (isNaN(amt) || amt <= 0) return;
+    await supabase.from("finance_transactions").insert({
+      id: Math.random().toString(36).slice(2),
+      user_id: session.user.id,
+      date: new Date().toISOString().split('T')[0],
+      timestamp: Date.now(),
+      amount: amt,
+      type: depositType === 'add' ? 'income' : 'expense',
+      category: 'Savings',
+      description: `${depositType === 'add' ? 'Added to' : 'Withdrew from'} ${depositGoal.name}`,
+      goal_id: depositGoal.id,
+    });
+    setEntries((prev: any[]) => [...prev, { id: Math.random().toString(36).slice(2), goal_id: depositGoal.id, amount: depositType === 'add' ? amt : -amt, type: depositType === 'add' ? 'income' : 'expense', category: 'Savings', description: '', date: new Date().toISOString().split('T')[0], timestamp: Date.now() }]);
+    setDepositGoal(null);
+    setDepositAmount('');
+  };
 
   const handleDeleteGoal = async (goalId: string) => {
     if (!window.confirm("Delete this goal?")) return;
@@ -401,12 +426,33 @@ export default function FinancePage() {
                   <button onClick={() => handleDeleteGoal(goal.id)}
                     style={{ flex: 1, padding: "8px", background: "#fef2f2", border: "none", borderRadius: "10px", fontSize: "11px", fontWeight: 700, color: "#ef4444", cursor: "pointer", fontFamily: "inherit" }}>🗑️ Delete</button>
                 </div>
+                <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
+                  <button onClick={() => { setDepositGoal(goal); setDepositType('add'); setDepositAmount(''); }}
+                    style={{ flex: 1, padding: "8px", background: "linear-gradient(135deg,#d1fae5,#a7f3d0)", border: "none", borderRadius: "10px", fontSize: "11px", fontWeight: 700, color: "#065f46", cursor: "pointer", fontFamily: "inherit" }}>+ Add Money</button>
+                  <button onClick={() => { setDepositGoal(goal); setDepositType('subtract'); setDepositAmount(''); }}
+                    style={{ flex: 1, padding: "8px", background: "linear-gradient(135deg,#fee2e2,#fecaca)", border: "none", borderRadius: "10px", fontSize: "11px", fontWeight: 700, color: "#991b1b", cursor: "pointer", fontFamily: "inherit" }}>− Withdraw</button>
+                </div>
               </div>
             );
           })}
         </div>
       )}
     </div>
+    {depositGoal && (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "24px" }} onClick={() => setDepositGoal(null)}>
+        <div style={{ background: "white", borderRadius: "24px", padding: "24px", width: "100%", maxWidth: "360px" }} onClick={e => e.stopPropagation()}>
+          <p style={{ fontSize: "16px", fontWeight: 800, color: "#111118", marginBottom: "4px" }}>{depositType === 'add' ? '+ Add Money' : '− Withdraw'}</p>
+          <p style={{ fontSize: "12px", color: "#9ca3af", fontWeight: 600, marginBottom: "16px" }}>{depositGoal.name}</p>
+          <input value={depositAmount} onChange={e => setDepositAmount(e.target.value)} placeholder="Amount ($)" type="number"
+            autoFocus
+            style={{ width: "100%", background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "14px", fontSize: "20px", fontWeight: 800, color: "#111118", outline: "none", fontFamily: "inherit", marginBottom: "16px", boxSizing: "border-box" as const, textAlign: "center" as const }} />
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={() => setDepositGoal(null)} style={{ flex: 1, padding: "12px", background: "#f1f5f9", border: "none", borderRadius: "12px", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <button onClick={handleDeposit} style={{ flex: 1, padding: "12px", background: depositType === 'add' ? "#059669" : "#ef4444", border: "none", borderRadius: "12px", color: "white", fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>{depositType === 'add' ? 'Add' : 'Withdraw'}</button>
+          </div>
+        </div>
+      </div>
+    )}
     {editingGoal && (
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "24px" }} onClick={() => setEditingGoal(null)}>
         <div style={{ background: "white", borderRadius: "24px", padding: "24px", width: "100%", maxWidth: "360px" }} onClick={e => e.stopPropagation()}>
