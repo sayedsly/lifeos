@@ -151,7 +151,8 @@ FOLLOWUP:true or FOLLOWUP:false`;
     let needsFollowUp = false;
     let text = raw;
 
-    const actionsMatch = raw.match(/ACTIONS:\s*(\[.*?\])\s*(?:FOLLOWUP:|$)/s);
+    const actionsIdx = raw.indexOf("ACTIONS:");
+    const actionsMatch = actionsIdx >= 0 ? [null, raw.slice(actionsIdx + 8).trim().split("\nFOLLOWUP:")[0].trim()] : null;
     const followupMatch = raw.match(/FOLLOWUP:\s*(true|false)/i);
 
     if (actionsMatch) {

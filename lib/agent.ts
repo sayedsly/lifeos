@@ -73,15 +73,16 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
     for (const e of entries) {
       await addNutritionEntry({
         id: Math.random().toString(36).slice(2),
-        user_id: session.user.id,
         date: e.date || today,
         food: e.food || e.name || "Unknown",
+        amount: e.amount || "1 serving",
         calories: e.calories || 0,
         protein: e.protein || 0,
         carbs: e.carbs || 0,
         fat: e.fat || 0,
         fiber: e.fiber || 0,
         meal: e.meal || "snack",
+        source: "voice" as const,
         timestamp: Date.now(),
       });
     }
@@ -94,7 +95,7 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
   }
 
   if (action.type === "macro_targets_update") {
-    await updateSettings({ macro_targets: action.data });
+    await updateSettings({ macroTargets: action.data });
     return `Macro targets updated ✓`;
   }
 

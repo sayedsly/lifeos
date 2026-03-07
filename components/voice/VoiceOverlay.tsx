@@ -61,7 +61,6 @@ export default function VoiceOverlay() {
   const [chatHistory, setChatHistory] = useState<{role:"user"|"ai";text:string}[]>([]);
   const [followUpText, setFollowUpText] = useState("");
   const [showFollowUp, setShowFollowUp] = useState(false);
-  const [chatHistory, setChatHistory] = useState<{role:"user"|"ai";text:string}[]>([]);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<{name:string;lang:string}[]>([]);
   const hasStarted = useRef(false);
