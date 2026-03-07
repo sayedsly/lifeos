@@ -184,7 +184,7 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
   if (action.type === "finance_transaction_log") {
     const txns = Array.isArray(action.data?.transactions) ? action.data.transactions : [action.data];
     for (const t of txns) {
-      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: t.amount || 0, type: t.type || "expense", category: t.category || "Other", description: t.note || t.description || "", goal_id: null, timestamp: Date.now() });
+      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, timestamp: Date.now(), amount: t.amount || 0, type: t.type || "expense", category: t.category || "Other", description: t.note || t.description || t.type || "Transaction" });
     }
     return `Logged ${txns.length} transaction${txns.length > 1 ? "s" : ""} ✓`;
   }
@@ -197,7 +197,7 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
   if (action.type === "finance_goal_add") {
     const goals = Array.isArray(action.data?.goals) ? action.data.goals : [action.data];
     for (const g of goals) {
-      await supabase.from("finance_goals").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, name: g.name, target: g.targetAmount || g.target || 0, current: g.currentAmount || 0, currency: g.currency || "USD", created_at: Date.now() });
+      await supabase.from("finance_goals").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, name: g.name, target: g.targetAmount || g.target || 1000, current: 0, currency: "USD", created_at: Date.now() });
     }
     return `Created ${goals.length} goal${goals.length > 1 ? "s" : ""} ✓`;
   }

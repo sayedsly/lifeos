@@ -111,7 +111,7 @@ You can perform ANY of these actions by returning them in ACTIONS array:
 - workout_plan_delete: {"name":"Old Plan"}
 - finance_transaction_log: {"transactions":[{"amount":50,"type":"expense","category":"food","note":"lunch"}]}
 - finance_transaction_delete: {"note":"lunch"}
-- finance_goal_add: {"goals":[{"name":"Japan Trip","targetAmount":5000,"category":"savings"}]}
+- finance_goal_add: {"goals":[{"name":"Japan Trip","targetAmount":5000}]} — ALWAYS estimate a realistic targetAmount based on the goal name (Japan trip=5000, car=20000, emergency fund=10000, mortgage downpayment=50000, vacation=3000, etc). Never use 0 or 1000 as default unless truly unknown.
 - finance_goal_update: {"goals":[{"name":"Japan","addAmount":500}]} or {"goals":[{"name":"Japan","subtractAmount":200}]} or {"goals":[{"name":"Japan","setAmount":1000}]}
 - finance_goal_delete: {"goals":[{"name":"Japan"}]}
 - finance_split: {"splits":[{"goalName":"Japan","amount":333},{"goalName":"Mortgage","amount":333}]}
