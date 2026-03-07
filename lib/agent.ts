@@ -280,6 +280,39 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
     return `Settings updated ✓`;
   }
 
+  // ── CHALLENGES ──
+  if (action.type === "challenge_create") {
+    const id = Math.random().toString(36).slice(2);
+    const endDate = new Date(Date.now() + (action.data?.days || 7) * 864e5).toISOString().slice(0, 10);
+    const { error: chErr } = await supabase.from("challenges").insert({ id, creator_id: session.user.id, title: action.data?.title || "Challenge", type: action.data?.type || "steps", goal: action.data?.goal || 10000, start_date: today, end_date: endDate, invitee_ids: [] });
+    if (chErr) throw new Error(chErr.message);
+    let inviteeIds: string[] = action.data?.inviteFriendIds || [];
+    if (action.data?.inviteAll) {
+      const { data: fships } = await supabase.from("friendships").select("requester_id,addressee_id").or(`requester_id.eq.${session.user.id},addressee_id.eq.${session.user.id}`).eq("status", "accepted");
+      inviteeIds = (fships || []).map((f: any) => f.requester_id === session.user.id ? f.addressee_id : f.requester_id);
+    }
+    const participants = [session.user.id, ...inviteeIds].map(uid => ({ id: Math.random().toString(36).slice(2), challenge_id: id, user_id: uid }));
+    await supabase.from("challenge_participants").insert(participants);
+    return `Challenge "${action.data?.title}" created with ${participants.length} participant(s) ✓`;
+  }
+
+  // ── MOOD ──
+  if (action.type === "mood_log") {
+    const { data: existing } = await supabase.from("mood_entries").select("id").eq("user_id", session.user.id).eq("date", today).single();
+    if (existing) {
+      await supabase.from("mood_entries").update({ mood: action.data?.mood || 3, note: action.data?.note || "" }).eq("id", existing.id);
+    } else {
+      await supabase.from("mood_entries").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, mood: action.data?.mood || 3, note: action.data?.note || "" });
+    }
+    return `Mood logged: ${action.data?.mood}/5 ✓`;
+  }
+
+  // ── ACHIEVEMENT CHECK ──
+  if (action.type === "achievement_check") {
+    await fetch("/api/achievements/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: session.user.id }) });
+    return "Achievement check triggered ✓";
+  }
+
   return `Done ✓`;
 }
 
