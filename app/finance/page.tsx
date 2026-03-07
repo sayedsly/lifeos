@@ -117,6 +117,7 @@ export default function FinancePage() {
   );
 
   return (
+    <>
     <div style={{ display: "flex", flexDirection: "column", gap: "14px", paddingTop: "16px" }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "0 4px" }}>
