@@ -55,6 +55,7 @@ export default function VoiceOverlay() {
   const [editedIntent, setEditedIntent] = useState<Record<string, any>>({});
   const [mode, setMode] = useState<"listening" | "quickadd">("listening");
   const [agentSaving, setAgentSaving] = useState(false);
+  const [editedActions, setEditedActions] = useState<any[] | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
   const [agentDone, setAgentDone] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
@@ -99,6 +100,7 @@ export default function VoiceOverlay() {
     setTextInput("");
     setShowAddExample(false);
     setMode("listening");
+    setEditedActions(null);
     hasStarted.current = false;
   };
 
@@ -127,7 +129,7 @@ export default function VoiceOverlay() {
     }
     setAgentSaving(true);
     try {
-      await executeAllActions(agentResult.actions || []);
+      await executeAllActions(editedActions || agentResult.actions || []);
       setAgentDone(true);
       // no auto-speak after action
       setTimeout(() => { setVoiceOpen(false); setAgentResult(null); setAgentDone(false); window.location.reload(); }, 2000);
@@ -181,6 +183,7 @@ export default function VoiceOverlay() {
   // ── AGENT RESPONSE ──
   if (state === "confirming" && agentResult) {
     const hasAction = agentResult.actions && agentResult.actions.length > 0;
+    const actions = editedActions || agentResult.actions || [];
     return (
       <div style={sheet} onClick={close}>
         <div style={card} onClick={e => e.stopPropagation()}>
@@ -211,31 +214,65 @@ export default function VoiceOverlay() {
             <p style={{ fontSize: "14px", color: "#374151", fontWeight: 600, lineHeight: 1.6 }}>{agentResult.text}</p>
           </div>
 
-          {hasAction && agentResult.actions && agentResult.actions.length > 0 && (
+          {hasAction && actions.length > 0 && (
             <div style={{ background: "linear-gradient(135deg,#e0e7ff,#ede9fe)", borderRadius: "14px", padding: "12px 14px", marginBottom: "14px" }}>
-              <p style={{ fontSize: "10px", fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "8px" }}>
-                {agentResult.actions.length > 1 ? `${agentResult.actions.length} Actions Queued` : "Proposed Action"}
+              <p style={{ fontSize: "10px", fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "10px" }}>
+                {actions.length > 1 ? `${actions.length} Actions Queued` : "Proposed Action"}
               </p>
-              {agentResult.actions.map((a: any, i: number) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
-                  <span style={{ fontSize: "13px" }}>
-                    {a.type.includes("nutrition") ? "🍽️" : a.type.includes("finance") ? "💰" : a.type.includes("task") ? "✅" : a.type.includes("workout") ? "💪" : a.type.includes("sleep") ? "😴" : a.type.includes("hydration") ? "💧" : a.type.includes("weight") ? "⚖️" : a.type.includes("steps") ? "👟" : a.type.includes("settings") ? "⚙️" : "✨"}
-                  </span>
-                  <p style={{ fontSize: "11px", fontWeight: 700, color: "#3730a3", margin: 0 }}>
-                    {a.type.replace(/_/g, " ")}
-                    {a.data?.food ? `: ${a.data.food}` : ""}
-                    {a.data?.amount && !a.data.goals && !a.data.splits ? ` $${a.data.amount}` : ""}
-                    {a.data?.goals ? `: ${Array.isArray(a.data.goals) ? a.data.goals.map((g:any) => g.name || g).join(", ") : ""}` : ""}
-                    {a.data?.tasks ? `: ${Array.isArray(a.data.tasks) ? a.data.tasks.map((t:any) => t.title || t).join(", ") : ""}` : ""}
-                    {a.data?.splits ? `: ${a.data.splits.map((s:any) => `${s.goalName} $${s.amount}`).join(" · ")}` : ""}
-                    {a.data?.weight ? `: ${a.data.weight}${a.data.unit || "lbs"}` : ""}
-                    {a.data?.duration && a.type.includes("workout") ? `: ${a.data.type || ""} ${a.data.duration}min` : ""}
-                    {a.data?.duration && a.type.includes("sleep") ? `: ${a.data.duration}h` : ""}
-                    {a.data?.steps ? `: ${a.data.steps} steps` : ""}
-                    {a.data?.entries ? `: ${Array.isArray(a.data.entries) ? a.data.entries.map((e:any) => e.food || `${e.amount}ml`).join(", ") : ""}` : ""}
-                  </p>
-                </div>
-              ))}
+              {actions.map((a: any, i: number) => {
+                const isNutrition = a.type === "nutrition_log" && a.data?.entries?.length > 0;
+                if (isNutrition) {
+                  const entries: any[] = (editedActions || agentResult.actions)[i]?.data?.entries || [];
+                  return (
+                    <div key={i} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {entries.map((entry: any, ei: number) => (
+                        <div key={ei} style={{ background: "white", borderRadius: "12px", padding: "12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+                            <span style={{ fontSize: "16px" }}>🍽️</span>
+                            <input value={entry.food || ""} onChange={e => {
+                              const updated = JSON.parse(JSON.stringify(editedActions || agentResult.actions));
+                              updated[i].data.entries[ei].food = e.target.value;
+                              setEditedActions(updated);
+                            }} style={{ flex: 1, fontSize: "13px", fontWeight: 700, color: "#111118", border: "none", outline: "none", background: "transparent", fontFamily: "inherit" }} />
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "6px" }}>
+                            {[{key:"calories",label:"Cal",color:"#f97316"},{key:"protein",label:"Pro",color:"#6366f1"},{key:"carbs",label:"Carb",color:"#eab308"},{key:"fat",label:"Fat",color:"#ec4899"}].map(({key,label,color}) => (
+                              <div key={key} style={{ background: "#f7f8fc", borderRadius: "10px", padding: "8px", textAlign: "center" as const }}>
+                                <p style={{ fontSize: "9px", fontWeight: 800, color, letterSpacing: "0.1em", textTransform: "uppercase" as const }}>{label}</p>
+                                <input type="number" value={entry[key] ?? ""} onChange={e => {
+                                  const updated = JSON.parse(JSON.stringify(editedActions || agentResult.actions));
+                                  updated[i].data.entries[ei][key] = parseFloat(e.target.value) || 0;
+                                  setEditedActions(updated);
+                                }} style={{ width: "100%", fontSize: "15px", fontWeight: 900, color: "#111118", border: "none", outline: "none", background: "transparent", textAlign: "center" as const, fontFamily: "inherit", marginTop: "2px" }} />
+                                <p style={{ fontSize: "9px", color: "#9ca3af" }}>{key === "calories" ? "kcal" : "g"}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                }
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "13px" }}>
+                      {a.type.includes("finance") ? "💰" : a.type.includes("task") ? "✅" : a.type.includes("workout") ? "💪" : a.type.includes("sleep") ? "😴" : a.type.includes("hydration") ? "💧" : a.type.includes("weight") ? "⚖️" : a.type.includes("steps") ? "👟" : a.type.includes("settings") ? "⚙️" : "✨"}
+                    </span>
+                    <p style={{ fontSize: "11px", fontWeight: 700, color: "#3730a3", margin: 0 }}>
+                      {a.type.replace(/_/g, " ")}
+                      {a.data?.amount && !a.data.goals && !a.data.splits ? ` $${a.data.amount}` : ""}
+                      {a.data?.goals ? `: ${Array.isArray(a.data.goals) ? a.data.goals.map((g:any) => g.name || g).join(", ") : ""}` : ""}
+                      {a.data?.tasks ? `: ${Array.isArray(a.data.tasks) ? a.data.tasks.map((t:any) => t.title || t).join(", ") : ""}` : ""}
+                      {a.data?.splits ? `: ${a.data.splits.map((s:any) => `${s.goalName} $${s.amount}`).join(" · ")}` : ""}
+                      {a.data?.weight ? `: ${a.data.weight}${a.data.unit || "lbs"}` : ""}
+                      {a.data?.duration && a.type.includes("workout") ? `: ${a.data.type || ""} ${a.data.duration}min` : ""}
+                      {a.data?.duration && a.type.includes("sleep") ? `: ${a.data.duration}h` : ""}
+                      {a.data?.steps ? `: ${a.data.steps} steps` : ""}
+                      {a.data?.entries ? `: ${Array.isArray(a.data.entries) ? a.data.entries.map((e:any) => e.food || `${e.amount}ml`).join(", ") : ""}` : ""}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           )}
 
