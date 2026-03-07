@@ -116,6 +116,13 @@ export default function AchievementsPage() {
     }
   };
 
+  const deletePhoto = async (photo: ProgressPhoto) => {
+    const path = photo.url.split("/progress-photos/")[1];
+    if (path) await supabase.storage.from("progress-photos").remove([decodeURIComponent(path)]);
+    await supabase.from("progress_photos").delete().eq("id", photo.id);
+    loadAll(userId);
+  };
+
   const earnedTypes = new Set(achievements.map(a => a.type));
   const today = format(new Date(), "yyyy-MM-dd");
 
