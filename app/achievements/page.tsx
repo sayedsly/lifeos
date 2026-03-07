@@ -325,6 +325,10 @@ export default function AchievementsPage() {
                     <p style={{ fontSize: "11px", fontWeight: 700, color: "#111118" }}>{format(new Date(p.date), "MMM d, yyyy")}</p>
                     {p.weight && <p style={{ fontSize: "11px", color: "#9ca3af" }}>{p.weight} lbs</p>}
                     {p.note && <p style={{ fontSize: "10px", color: "#9ca3af", marginTop: "2px" }}>{p.note}</p>}
+                    <button onClick={e => { e.stopPropagation(); if (window.confirm("Delete this photo?")) deletePhoto(p); }}
+                      style={{ marginTop: "6px", padding: "4px 10px", borderRadius: "8px", background: "#fef2f2", border: "none", color: "#ef4444", fontSize: "10px", fontWeight: 700, cursor: "pointer", width: "100%" }}>
+                      Delete
+                    </button>
                   </div>
                 </div>
               );
