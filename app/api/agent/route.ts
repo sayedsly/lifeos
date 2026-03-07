@@ -6,7 +6,7 @@ const DAILY_LIMIT = 30;
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, accessToken, message, history } = await req.json();
+    const { userId, accessToken, message, history, imageBase64, imageMimeType } = await req.json();
     if (!userId || !accessToken) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userSupabase = createClient(
@@ -180,7 +180,10 @@ FOLLOWUP:true or FOLLOWUP:false`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message }] }],
+          contents: [{ role: "user", parts: [
+            ...(imageBase64 ? [{ inline_data: { mime_type: imageMimeType || "image/jpeg", data: imageBase64 } }] : []),
+            { text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message + (imageBase64 ? "\n[User attached a food photo — analyze it and estimate macros, return nutrition_log action]" : "") }
+          ] }],
           generationConfig: { maxOutputTokens: 2500, temperature: 0.7 },
         }),
       }

@@ -56,6 +56,9 @@ export default function VoiceOverlay() {
   const [mode, setMode] = useState<"listening" | "quickadd">("listening");
   const [agentSaving, setAgentSaving] = useState(false);
   const [editedActions, setEditedActions] = useState<any[] | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageAnalyzing, setImageAnalyzing] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const [rateLimited, setRateLimited] = useState(false);
   const [agentDone, setAgentDone] = useState(false);
   const [selectedVoice, setSelectedVoice] = useState<string>("");
@@ -94,6 +97,37 @@ export default function VoiceOverlay() {
 
   if (!isVoiceOpen) return null;
 
+  const handleImageUpload = async (file: File) => {
+    setImageAnalyzing(true);
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const base64 = (e.target?.result as string).split(",")[1];
+      setImageBase64(base64);
+      // Submit to agent with image
+      const { data: { session } } = await import("@/lib/supabase/client").then(m => m.supabase.auth.getSession());
+      if (!session) return;
+      try {
+        const res = await fetch("/api/agent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: session.user.id,
+            accessToken: session.access_token,
+            message: "Analyze this food image and estimate the macros (calories, protein, carbs, fat). Log it as a nutrition entry.",
+            history: [],
+            imageBase64: base64,
+            imageMimeType: file.type,
+          }),
+        });
+        const result = await res.json();
+        setAgentResult(result);
+        if (result.actions) setEditedActions(result.actions);
+      } catch (e) { console.error(e); }
+      setImageAnalyzing(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const close = () => {
     cancel();
     setVoiceOpen(false);
@@ -101,6 +135,7 @@ export default function VoiceOverlay() {
     setShowAddExample(false);
     setMode("listening");
     setEditedActions(null);
+    setImageBase64(null);
     hasStarted.current = false;
   };
 
