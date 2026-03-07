@@ -38,9 +38,10 @@ export function useVoice() {
   const processText = async (text: string) => {
     setState("processing");
     try {
-      // Try local parser first for simple logs
+      // Try local parser first for simple logs (skip for nutrition — always use AI for food)
       const parsed = parseIntent(text);
-      if (parsed && !isQuestion(text)) {
+      const isNutrition = parsed?.domain === "nutrition_add";
+      if (parsed && !isQuestion(text) && !isNutrition) {
         setIntent(parsed);
         setState("confirming");
         return;

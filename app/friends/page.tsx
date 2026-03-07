@@ -305,7 +305,7 @@ export default function FriendsPage() {
   };
 
   const sendRequest = async (addresseeId: string) => {
-    const { error } = await supabase.from("friendships").insert({ id: Math.random().toString(36).slice(2), requester_id: myId, addressee_id: addresseeId, status: "pending" });
+    const { error } = await supabase.from("friendships").insert({ requester_id: myId, addressee_id: addresseeId, status: "pending" });
     if (error) { alert("Error: " + error.message); return; }
     setRequestSent(prev => [...prev, addresseeId]); setSearchResults(prev => prev.filter(p => p.id !== addresseeId));
   };
