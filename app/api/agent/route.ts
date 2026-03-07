@@ -170,13 +170,22 @@ FOLLOWUP:true or FOLLOWUP:false`;
     // Strip ACTIONS block
     const actionsIdx = raw.indexOf("ACTIONS:");
     if (actionsIdx >= 0) {
-      const actionsStr = raw.slice(actionsIdx + 8).trim().split(/\nFOLLOWUP:/)[0].trim();
+      const afterActions = raw.slice(actionsIdx + 8).trim();
+      // Find the closing ] of the JSON array robustly
+      let depth = 0, endIdx = -1;
+      for (let i = 0; i < afterActions.length; i++) {
+        if (afterActions[i] === "[") depth++;
+        else if (afterActions[i] === "]") { depth--; if (depth === 0) { endIdx = i; break; } }
+      }
+      const actionsStr = endIdx >= 0 ? afterActions.slice(0, endIdx + 1) : afterActions.split(/\nFOLLOWUP:/)[0].trim();
       try {
         const parsed = JSON.parse(actionsStr);
         actions = Array.isArray(parsed) ? parsed.filter((a: any) => a.type !== "none") : [];
       } catch (e) { console.error("Actions parse error:", e, "\nStr was:", actionsStr.slice(0, 300)); }
-      // Text is everything before ACTIONS, strip FOLLOWUP line too
-      text = raw.slice(0, actionsIdx).trim();
+      // Text is everything before ACTIONS plus everything after the closing ]
+      const beforeActions = raw.slice(0, actionsIdx).trim();
+      const afterJson = endIdx >= 0 ? afterActions.slice(endIdx + 1).trim() : "";
+      text = (beforeActions + " " + afterJson).trim();
     }
 
     // Strip FOLLOWUP line from text regardless
