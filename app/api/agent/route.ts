@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     const todayTasks = (tasks || []).filter((t: any) => t.date === today);
     const latestWeight = bodyWeight?.[0];
 
+    console.log("[Memory read]", JSON.stringify(aiMemoryRow));
     const memoryFacts: string[] = aiMemoryRow?.facts || [];
     const dataContext = `
 TODAY (${today}):
@@ -189,14 +190,20 @@ FOLLOWUP:true or FOLLOWUP:false`;
       text = text.replace(/MEMORY:\s*\[[\s\S]*?\]/, "").trim();
     }
 
-    // Upsert ai_memory if new facts found
+    // Upsert ai_memory if new facts found — use service role to bypass RLS
     if (newFacts.length > 0) {
-      const merged = Array.from(new Set(memoryFacts.concat(newFacts))).slice(0, 50); // cap at 50 facts
-      await userSupabase.from("ai_memory").upsert({
+      const serviceSupabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      const merged = Array.from(new Set(memoryFacts.concat(newFacts))).slice(0, 50);
+      await serviceSupabase.from("ai_memory").delete().eq("user_id", userId);
+      const { error: memErr } = await serviceSupabase.from("ai_memory").insert({
         user_id: userId,
         facts: merged,
         last_updated: new Date().toISOString(),
-      }, { onConflict: "user_id" });
+      });
+      console.log("[Memory write]", merged, memErr);
     }
 
     const estimatedCostCents = Math.round((500 * 0.075 + 300 * 0.30) / 1000 * 100) / 100;
