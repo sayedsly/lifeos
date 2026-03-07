@@ -83,7 +83,7 @@ export default function StructuredSession({ type, planExercises, lastSession, on
       };
       await supabase.from("workout_sessions").insert({ ...workoutSession, user_id: authSession.user.id });
       const snapshot = await computeMomentum(today);
-      await supabase.from("momentum_snapshots").upsert({ id: Math.random().toString(36).slice(2), user_id: authSession.user.id, date: today, score: snapshot.total, breakdown: snapshot.breakdown, timestamp: Date.now() });
+      await supabase.from("momentum_snapshots").upsert({ id: Math.random().toString(36).slice(2), user_id: authSession.user.id, date: today, score: snapshot.score, breakdown: snapshot.breakdown, timestamp: Date.now() });
       refreshMomentum();
       onSave();
     } finally {
