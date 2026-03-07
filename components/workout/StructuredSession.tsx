@@ -82,23 +82,8 @@ export default function StructuredSession({ type, planExercises, lastSession, on
         timestamp: Date.now(),
       };
       await supabase.from("workout_sessions").insert({ ...workoutSession, user_id: authSession.user.id });
-      const allEntries = await supabase.from("nutrition_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
-      const allSleep = await supabase.from("sleep_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
-      const allHydration = await supabase.from("hydration_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
-      const allSteps = await supabase.from("step_entries").select("*").eq("user_id", authSession.user.id).eq("date", today);
-      const allTasks = await supabase.from("tasks").select("*").eq("user_id", authSession.user.id).eq("date", today);
-      const settings = await supabase.from("user_settings").select("*").eq("user_id", authSession.user.id).single();
-      const s = settings.data || {};
-      const score = computeMomentum({
-        nutrition: allEntries.data || [],
-        sleep: allSleep.data?.[0] || null,
-        hydration: allHydration.data || [],
-        steps: allSteps.data?.[0] || null,
-        tasks: allTasks.data || [],
-        workout: workoutSession,
-        settings: s,
-      });
-      await supabase.from("momentum_snapshots").upsert({ id: Math.random().toString(36).slice(2), user_id: authSession.user.id, date: today, score: score.total, breakdown: score.breakdown, timestamp: Date.now() });
+      const snapshot = await computeMomentum(today);
+      await supabase.from("momentum_snapshots").upsert({ id: Math.random().toString(36).slice(2), user_id: authSession.user.id, date: today, score: snapshot.total, breakdown: snapshot.breakdown, timestamp: Date.now() });
       refreshMomentum();
       onSave();
     } finally {
