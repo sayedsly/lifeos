@@ -30,6 +30,9 @@ export default function FinancePage() {
   const [goals, setGoals] = useState<FinanceGoal[]>([]);
   const [entries, setEntries] = useState<FinanceTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingGoal, setEditingGoal] = useState<any>(null);
+  const [editGoalName, setEditGoalName] = useState("");
+  const [editGoalTarget, setEditGoalTarget] = useState("");
   const [tab, setTab] = useState<Tab>("overview");
   const [showAdd, setShowAdd] = useState(false);
   const [addType, setAddType] = useState<"expense" | "income" | "savings">("expense");
@@ -89,17 +92,12 @@ export default function FinancePage() {
 
   const categories = addType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
-  if (loading) return (
-    <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p style={{ color: "#9ca3af", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</p>
-    </div>
-  );
-
   const handleDeleteGoal = async (goalId: string) => {
+    if (!window.confirm("Delete this goal?")) return;
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
     await supabase.from("finance_goals").delete().eq("id", goalId).eq("user_id", session.user.id);
-    setGoals(goals.filter((g: any) => g.id !== goalId));
+    setGoals((prev: any[]) => prev.filter((g: any) => g.id !== goalId));
   };
 
   const handleSaveGoal = async () => {
@@ -108,9 +106,15 @@ export default function FinancePage() {
     if (!session) return;
     const newTarget = parseFloat(editGoalTarget) || editingGoal.target;
     await supabase.from("finance_goals").update({ name: editGoalName, target: newTarget }).eq("id", editingGoal.id).eq("user_id", session.user.id);
-    setGoals((goals as any[]).map((g: any) => g.id === editingGoal.id ? { ...g, name: editGoalName, target: newTarget } : g));
+    setGoals((prev: any[]) => prev.map((g: any) => g.id === editingGoal.id ? { ...g, name: editGoalName, target: newTarget } : g));
     setEditingGoal(null);
   };
+
+    if (loading) return (
+    <div style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p style={{ color: "#9ca3af", fontSize: "11px", letterSpacing: "0.2em", textTransform: "uppercase" }}>Loading...</p>
+    </div>
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "14px", paddingTop: "16px" }}>
@@ -234,24 +238,7 @@ export default function FinancePage() {
                 const catTotal = thisMonth.filter(e => e.type === "expense" && e.category === cat.key).reduce((s, e) => s + e.amount, 0);
                 if (catTotal === 0) return null;
                 const pct = catTotal / monthExpenses;
-                const handleDeleteGoal = async (goalId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await supabase.from("finance_goals").delete().eq("id", goalId).eq("user_id", session.user.id);
-    setGoals(goals.filter((g: any) => g.id !== goalId));
-  };
-
-  const handleSaveGoal = async () => {
-    if (!editingGoal) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const newTarget = parseFloat(editGoalTarget) || editingGoal.target;
-    await supabase.from("finance_goals").update({ name: editGoalName, target: newTarget }).eq("id", editingGoal.id).eq("user_id", session.user.id);
-    setGoals((goals as any[]).map((g: any) => g.id === editingGoal.id ? { ...g, name: editGoalName, target: newTarget } : g));
-    setEditingGoal(null);
-  };
-
-  return (
+                return (
                   <div key={cat.key} style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
                     <span style={{ fontSize: "16px", width: 24, textAlign: "center" as const }}>{cat.emoji}</span>
                     <div style={{ flex: 1 }}>
@@ -277,24 +264,7 @@ export default function FinancePage() {
               {entries.slice(0, 10).map((e, i) => {
                 const cat = [...EXPENSE_CATEGORIES, ...INCOME_CATEGORIES].find(c => c.key === e.category) || EXPENSE_CATEGORIES[7];
                 const isExpense = e.type === "expense";
-                const handleDeleteGoal = async (goalId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await supabase.from("finance_goals").delete().eq("id", goalId).eq("user_id", session.user.id);
-    setGoals(goals.filter((g: any) => g.id !== goalId));
-  };
-
-  const handleSaveGoal = async () => {
-    if (!editingGoal) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const newTarget = parseFloat(editGoalTarget) || editingGoal.target;
-    await supabase.from("finance_goals").update({ name: editGoalName, target: newTarget }).eq("id", editingGoal.id).eq("user_id", session.user.id);
-    setGoals((goals as any[]).map((g: any) => g.id === editingGoal.id ? { ...g, name: editGoalName, target: newTarget } : g));
-    setEditingGoal(null);
-  };
-
-  return (
+                return (
                   <div key={e.id} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 0", borderBottom: i < Math.min(entries.length, 10) - 1 ? "1px solid #f7f8fc" : "none" }}>
                     <div style={{ width: 36, height: 36, borderRadius: "10px", background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", flexShrink: 0 }}>
                       {cat.emoji}
@@ -332,24 +302,7 @@ export default function FinancePage() {
             </div>
           ) : entries.filter(e => e.type === "expense").map((e, i, arr) => {
             const cat = EXPENSE_CATEGORIES.find(c => c.key === e.category) || EXPENSE_CATEGORIES[7];
-            const handleDeleteGoal = async (goalId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await supabase.from("finance_goals").delete().eq("id", goalId).eq("user_id", session.user.id);
-    setGoals(goals.filter((g: any) => g.id !== goalId));
-  };
-
-  const handleSaveGoal = async () => {
-    if (!editingGoal) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const newTarget = parseFloat(editGoalTarget) || editingGoal.target;
-    await supabase.from("finance_goals").update({ name: editGoalName, target: newTarget }).eq("id", editingGoal.id).eq("user_id", session.user.id);
-    setGoals((goals as any[]).map((g: any) => g.id === editingGoal.id ? { ...g, name: editGoalName, target: newTarget } : g));
-    setEditingGoal(null);
-  };
-
-  return (
+            return (
               <div key={e.id} style={{ background: "white", borderRadius: "16px", padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "12px", background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
                   {cat.emoji}
@@ -375,24 +328,7 @@ export default function FinancePage() {
             </div>
           ) : entries.filter(e => e.type === "income").map(e => {
             const cat = INCOME_CATEGORIES.find(c => c.key === e.category) || INCOME_CATEGORIES[4];
-            const handleDeleteGoal = async (goalId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await supabase.from("finance_goals").delete().eq("id", goalId).eq("user_id", session.user.id);
-    setGoals(goals.filter((g: any) => g.id !== goalId));
-  };
-
-  const handleSaveGoal = async () => {
-    if (!editingGoal) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const newTarget = parseFloat(editGoalTarget) || editingGoal.target;
-    await supabase.from("finance_goals").update({ name: editGoalName, target: newTarget }).eq("id", editingGoal.id).eq("user_id", session.user.id);
-    setGoals((goals as any[]).map((g: any) => g.id === editingGoal.id ? { ...g, name: editGoalName, target: newTarget } : g));
-    setEditingGoal(null);
-  };
-
-  return (
+            return (
               <div key={e.id} style={{ background: "white", borderRadius: "16px", padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", display: "flex", alignItems: "center", gap: "12px" }}>
                 <div style={{ width: 40, height: 40, borderRadius: "12px", background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
                   {cat.emoji}
@@ -441,24 +377,7 @@ export default function FinancePage() {
             const saved = goalEntries.reduce((s, e) => s + e.amount, 0);
             const pct = Math.min(saved / goal.target, 1);
             const remaining = Math.max(goal.target - saved, 0);
-            const handleDeleteGoal = async (goalId: string) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    await supabase.from("finance_goals").delete().eq("id", goalId).eq("user_id", session.user.id);
-    setGoals(goals.filter((g: any) => g.id !== goalId));
-  };
-
-  const handleSaveGoal = async () => {
-    if (!editingGoal) return;
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const newTarget = parseFloat(editGoalTarget) || editingGoal.target;
-    await supabase.from("finance_goals").update({ name: editGoalName, target: newTarget }).eq("id", editingGoal.id).eq("user_id", session.user.id);
-    setGoals((goals as any[]).map((g: any) => g.id === editingGoal.id ? { ...g, name: editGoalName, target: newTarget } : g));
-    setEditingGoal(null);
-  };
-
-  return (
+            return (
               <div key={goal.id} style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "14px" }}>
                   <div>
@@ -486,6 +405,7 @@ export default function FinancePage() {
         </div>
       )}
     </div>
+  );
     {editingGoal && (
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "24px" }} onClick={() => setEditingGoal(null)}>
         <div style={{ background: "white", borderRadius: "24px", padding: "24px", width: "100%", maxWidth: "360px" }} onClick={e => e.stopPropagation()}>
@@ -501,6 +421,5 @@ export default function FinancePage() {
         </div>
       </div>
     )}
-    </>
   );
 }
