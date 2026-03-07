@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { format, subDays } from "date-fns";
 
+const DAILY_LIMIT = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const { userId, accessToken, message, history } = await req.json();
@@ -14,41 +16,21 @@ export async function POST(req: NextRequest) {
     );
 
     const today = format(new Date(), "yyyy-MM-dd");
+    const weekAgo = format(subDays(new Date(), 7), "yyyy-MM-dd");
 
-    // Rate limiting: 30 AI calls per user per day
-    const DAILY_LIMIT = 30;
-    const { data: usageRow } = await userSupabase
-      .from("ai_usage")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("date", today)
-      .single();
-    
+    // Rate limiting
+    const { data: usageRow } = await userSupabase.from("ai_usage").select("*").eq("user_id", userId).eq("date", today).single();
     const currentCount = usageRow?.count || 0;
-    if (currentCount >= DAILY_LIMIT) {
-      return NextResponse.json({ error: "RATE_LIMITED", count: currentCount }, { status: 429 });
-    }
+    if (currentCount >= DAILY_LIMIT) return NextResponse.json({ error: "Cmon bro, chill — hit up Sayed to reset" }, { status: 429 });
+    if (usageRow) await userSupabase.from("ai_usage").update({ count: currentCount + 1, last_query: message }).eq("id", usageRow.id);
+    else await userSupabase.from("ai_usage").insert({ id: Math.random().toString(36).slice(2), user_id: userId, date: today, count: 1, last_query: message, cost_cents: 0 });
 
-    // Log this usage
-    if (usageRow) {
-      await userSupabase.from("ai_usage").update({ count: currentCount + 1, last_query: message }).eq("id", usageRow.id);
-    } else {
-      await userSupabase.from("ai_usage").insert({ id: Math.random().toString(36).slice(2), user_id: userId, date: today, count: 1, last_query: message, cost_cents: 0 });
-    }
-    const weekAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
-
+    // Fetch all user data
     const [
-      { data: snapshots },
-      { data: nutrition },
-      { data: sleep },
-      { data: hydration },
-      { data: steps },
-      { data: workouts },
-      { data: tasks },
-      { data: settingsRow },
-      { data: financeGoals },
-      { data: financeTransactions },
-      { data: bodyWeight },
+      { data: momentum }, { data: nutrition }, { data: sleep },
+      { data: hydration }, { data: steps }, { data: workouts },
+      { data: tasks }, { data: settingsRow }, { data: financeGoals },
+      { data: transactions }, { data: bodyWeight }, { data: recurringTasks },
     ] = await Promise.all([
       userSupabase.from("momentum_snapshots").select("date,score,breakdown").eq("user_id", userId).gte("date", weekAgo).order("date"),
       userSupabase.from("nutrition_entries").select("date,calories,protein,carbs,fat,fiber,food,meal").eq("user_id", userId).gte("date", weekAgo).order("timestamp", { ascending: false }),
@@ -56,15 +38,16 @@ export async function POST(req: NextRequest) {
       userSupabase.from("hydration_entries").select("date,amount").eq("user_id", userId).gte("date", weekAgo),
       userSupabase.from("step_entries").select("date,count").eq("user_id", userId).gte("date", weekAgo),
       userSupabase.from("workout_sessions").select("date,type,duration,intensity,exercises").eq("user_id", userId).gte("date", weekAgo),
-      userSupabase.from("tasks").select("date,title,completed,priority").eq("user_id", userId).eq("date", today),
+      userSupabase.from("tasks").select("date,title,completed,priority").eq("user_id", userId).gte("date", weekAgo),
       userSupabase.from("user_settings").select("*").eq("user_id", userId).single(),
       userSupabase.from("finance_goals").select("*").eq("user_id", userId),
       userSupabase.from("finance_transactions").select("*").eq("user_id", userId).gte("date", weekAgo),
       userSupabase.from("body_weight_entries").select("date,weight,unit").eq("user_id", userId).order("timestamp", { ascending: false }).limit(10),
+      userSupabase.from("recurring_tasks").select("*").eq("user_id", userId),
     ]);
 
     const s = settingsRow || {};
-    const goals = {
+    const userGoals = {
       calories: s.macro_targets?.calories || 2000,
       protein: s.macro_targets?.protein || 150,
       carbs: s.macro_targets?.carbs || 250,
@@ -74,110 +57,79 @@ export async function POST(req: NextRequest) {
       steps: s.step_goal || 10000,
     };
 
-    // Today's nutrition
-    const todayNutrition = (nutrition || []).filter(n => n.date === today);
-    const todayTotals = todayNutrition.reduce((acc, n) => ({
-      calories: acc.calories + (n.calories || 0),
-      protein: acc.protein + (n.protein || 0),
-      carbs: acc.carbs + (n.carbs || 0),
-      fat: acc.fat + (n.fat || 0),
-      fiber: acc.fiber + (n.fiber || 0),
-    }), { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-
-    // Week nutrition averages
-    const nutritionByDay: Record<string, any> = {};
-    (nutrition || []).forEach(n => {
-      if (!nutritionByDay[n.date]) nutritionByDay[n.date] = { calories: 0, protein: 0 };
-      nutritionByDay[n.date].calories += n.calories || 0;
-      nutritionByDay[n.date].protein += n.protein || 0;
-    });
-    const nutritionDays = Object.values(nutritionByDay);
-    const avgCalories = nutritionDays.length ? Math.round(nutritionDays.reduce((a, d) => a + d.calories, 0) / nutritionDays.length) : 0;
-
-    // Today's steps and hydration
-    const todaySteps = (steps || []).find(s => s.date === today)?.count || 0;
-    const todayHydration = (hydration || []).filter(h => h.date === today).reduce((a, h) => a + h.amount, 0);
-    const todaySleep = (sleep || []).find(s => s.date === today);
-
-    // Finance
-    const financeGoalsSummary = (financeGoals || []).map((g: any) => {
-      const saved = (financeTransactions || []).filter((t: any) => t.goal_id === g.id).reduce((a: number, t: any) => a + t.amount, 0);
-      return { name: g.name, target: g.target, saved, remaining: Math.max(g.target - saved, 0), pct: Math.round((saved / g.target) * 100) };
-    });
+    const todayNutrition = (nutrition || []).filter((n: any) => n.date === today);
+    const totalCals = todayNutrition.reduce((s: number, n: any) => s + (n.calories || 0), 0);
+    const totalProtein = todayNutrition.reduce((s: number, n: any) => s + (n.protein || 0), 0);
+    const todayHydration = (hydration || []).filter((h: any) => h.date === today).reduce((s: number, h: any) => s + (h.amount || 0), 0);
+    const todaySteps = (steps || []).find((s: any) => s.date === today)?.count || 0;
+    const todayTasks = (tasks || []).filter((t: any) => t.date === today);
+    const latestWeight = bodyWeight?.[0];
 
     const dataContext = `
 TODAY (${today}):
-- Calories eaten: ${Math.round(todayTotals.calories)} / ${goals.calories} kcal (${Math.round(goals.calories - todayTotals.calories)} remaining)
-- Protein: ${Math.round(todayTotals.protein)}g / ${goals.protein}g
-- Carbs: ${Math.round(todayTotals.carbs)}g / ${goals.carbs}g
-- Fat: ${Math.round(todayTotals.fat)}g / ${goals.fat}g
-- Water: ${todayHydration}ml / ${goals.hydration}ml
-- Steps: ${todaySteps.toLocaleString()} / ${goals.steps.toLocaleString()}
-- Sleep last night: ${todaySleep ? todaySleep.duration + "h (quality " + todaySleep.quality + "/5)" : "not logged"}
-- Today's foods logged: ${todayNutrition.map(n => n.food + " (" + n.meal + ", " + n.calories + "cal)").join(", ") || "none"}
-- Today's tasks: ${(tasks || []).map(t => (t.completed ? "✓" : "○") + " " + t.title).join(", ") || "none"}
+- Calories: ${totalCals}/${userGoals.calories} kcal | Protein: ${totalProtein}g/${userGoals.protein}g
+- Hydration: ${todayHydration}ml/${userGoals.hydration}ml
+- Steps: ${todaySteps}/${userGoals.steps}
+- Tasks today: ${todayTasks.map((t: any) => `${t.title}(${t.completed ? "done" : "pending"})`).join(", ") || "none"}
+- Meals logged: ${todayNutrition.map((n: any) => `${n.food}(${n.calories}cal,${n.meal})`).join(", ") || "none"}
 
-THIS WEEK AVERAGES:
-- Avg calories/day: ${avgCalories}
-- Avg steps/day: ${steps?.length ? Math.round((steps || []).reduce((a, s) => a + s.count, 0) / steps.length) : 0}
-- Workouts: ${(workouts || []).length} sessions (${Array.from(new Set((workouts || []).map((w: any) => w.type))).join(", ") || "none"})
-- Avg sleep: ${sleep?.length ? ((sleep || []).reduce((a, s) => a + s.duration, 0) / sleep.length).toFixed(1) : 0}h
+THIS WEEK:
+- Workouts: ${(workouts || []).length} sessions — ${(workouts || []).map((w: any) => `${w.date}:${w.type}(${w.duration}min)`).join(", ") || "none"}
+- Sleep: ${(sleep || []).map((s: any) => `${s.date}:${s.duration}h`).join(", ") || "none"}
+- Momentum scores: ${(momentum || []).map((m: any) => `${m.date}:${m.score}`).join(", ") || "none"}
 
-USER GOALS:
-- Daily calories: ${goals.calories} kcal
-- Daily protein: ${goals.protein}g
-- Daily steps: ${goals.steps.toLocaleString()}
-- Daily water: ${goals.hydration}ml
-- Sleep goal: ${goals.sleep}h
+FINANCE:
+- Goals: ${(financeGoals || []).map((g: any) => `${g.name}($${g.current_amount}/$${g.target_amount})`).join(", ") || "none"}
+- Recent transactions: ${(transactions || []).slice(0, 10).map((t: any) => `${t.date}:${t.type}$${t.amount}(${t.category})`).join(", ") || "none"}
 
-FINANCE GOALS:
-${financeGoalsSummary.map(g => `- ${g.name}: $${g.saved} saved of $${g.target} target (${g.pct}%, $${g.remaining} remaining)`).join("\n") || "No goals set"}
+BODY & SETTINGS:
+- Latest weight: ${latestWeight ? `${latestWeight.weight}${latestWeight.unit} on ${latestWeight.date}` : "not logged"}
+- Goals: ${JSON.stringify(userGoals)}
+- Recurring tasks: ${(recurringTasks || []).map((t: any) => t.title).join(", ") || "none"}
 `;
 
-    const systemPrompt = `You are a personal AI health and life coach inside LifeOS, a habit tracking app. You have access to the user's real data and must give specific, actionable advice based on it.
-
-IMPORTANT: When the user asks you to DO something (log food, create a workout, split money between goals, set macros, etc.), respond with a JSON action block in addition to your text. Format it EXACTLY like this at the end of your response:
-
-ACTION:{"type":"nutrition_log","data":{"food":"2 eggs","calories":140,"protein":12,"carbs":0,"fat":10,"meal":"snack"}}
-or
-ACTION:{"type":"workout_plan","data":{"name":"Push Day","type":"Push","exercises":[{"name":"Bench Press","sets":4,"reps":8,"weight":135},{"name":"Shoulder Press","sets":3,"reps":10,"weight":65}]}}
-or  
-ACTION:{"type":"finance_split","data":{"splits":[{"goalName":"Emergency Fund","amount":300},{"goalName":"Vacation","amount":200}]}}
-or
-ACTION:{"type":"macro_targets","data":{"calories":2200,"protein":175,"carbs":220,"fat":70}}
-or
-ACTION:{"type":"task_add","data":{"tasks":[{"title":"Buy groceries","priority":2},{"title":"Call doctor","priority":1}]}}
-or
-ACTION:{"type":"hydration_log","data":{"amount":500}}
-or
-ACTION:{"type":"sleep_log","data":{"duration":7.5,"quality":3,"bedtime":"23:30","wakeTime":"07:00"}}
-or
-ACTION:{"type":"none"}
-
-Rules:
-- For informational questions, answer and end with ACTION:{"type":"none"}
-- When user gives body stats (height/weight/goal), ALWAYS return ACTION macro_targets with calculated values
-- When user asks to add tasks, return ACTION task_add
-- When user logs water/hydration, return ACTION hydration_log  
-- When user says they slept X hours, return ACTION sleep_log
-- Log expense/income: ACTION:{"type":"finance_transaction","data":{"transactions":[{"amount":50,"type":"expense","category":"food","note":"lunch"}]}}
-- Split money to goals: ACTION finance_split
-- Create finance goal: ACTION finance_goal_add
-- Log workout session: ACTION:{"type":"workout_session_log","data":{"type":"Push","duration":54,"intensity":4,"exercises":[]}}
-- Complete a task: ACTION:{"type":"task_complete","data":{"titles":["buy groceries"]}}
-- Delete a task: ACTION:{"type":"task_delete","data":{"title":"old task"}}
-- Log steps: ACTION:{"type":"steps_log","data":{"steps":8000}}
-- Log body weight: ACTION body_weight
-- When user wants to split money across existing goals: ACTION finance_split
-- When user wants to CREATE a new finance goal, return ACTION finance_goal_add with: {"goals":[{"name":"Emergency Fund","targetAmount":5000,"category":"savings"}]}
-- When user mentions their weight, return ACTION body_weight with: {"weight":165,"unit":"lbs"}
-- NEVER leave a response mid-sentence. Always complete your thought.
-- Keep responses under 200 words, warm, specific to their actual data numbers.`;
-
-    // Build conversation history context
     const historyContext = history && history.length > 0
-      ? "\n\nPREVIOUS CONVERSATION THIS SESSION:\n" + history.slice(-6).map((m: any) => `${m.role === "user" ? "User" : "Assistant"}: ${m.text}`).join("\n")
+      ? "\n\nCONVERSATION HISTORY (same session — continue this thread):\n" + history.slice(-8).map((m: any) => `${m.role === "user" ? "User" : "You"}: ${m.text}`).join("\n")
       : "";
+
+    const systemPrompt = `You are the LifeOS AI — a personal optimization coach with FULL ability to read and modify every module in the app.
+
+You can perform ANY of these actions by returning them in ACTIONS array:
+- nutrition_log: {"entries":[{"food":"chicken","calories":300,"protein":30,"carbs":5,"fat":8,"meal":"lunch"}]}
+- nutrition_delete: {"food":"pizza"}
+- macro_targets_update: {"calories":2200,"protein":160,"carbs":240,"fat":70}
+- hydration_log: {"entries":[{"amount":500}]}
+- sleep_log: {"duration":7.5,"quality":4,"bedtime":"23:00","wakeTime":"06:30"}
+- steps_log: {"steps":8000}
+- task_add: {"tasks":[{"title":"Buy groceries","priority":2}]}
+- task_complete: {"titles":["Buy groceries"]}
+- task_delete: {"titles":["Old task"]}
+- recurring_task_add: {"tasks":[{"title":"Morning walk","frequency":"daily","priority":2}]}
+- recurring_task_delete: {"title":"Morning walk"}
+- workout_session_log: {"type":"Push","duration":54,"intensity":4,"exercises":[{"name":"Bench Press","sets":4,"reps":8,"weight":135}]}
+- workout_plan_save: {"name":"My Push Day","type":"Push","exercises":[]}
+- workout_plan_delete: {"name":"Old Plan"}
+- finance_transaction_log: {"transactions":[{"amount":50,"type":"expense","category":"food","note":"lunch"}]}
+- finance_transaction_delete: {"note":"lunch"}
+- finance_goal_add: {"goals":[{"name":"Japan Trip","targetAmount":5000,"category":"savings"}]}
+- finance_goal_update: {"goals":[{"name":"Japan","addAmount":500}]} or {"goals":[{"name":"Japan","subtractAmount":200}]} or {"goals":[{"name":"Japan","setAmount":1000}]}
+- finance_goal_delete: {"goals":[{"name":"Japan"}]}
+- finance_split: {"splits":[{"goalName":"Japan","amount":333},{"goalName":"Mortgage","amount":333}]}
+- body_weight_log: {"weight":165,"unit":"lbs"}
+- settings_update: {"step_goal":12000} or {"sleep_goal":8} or {"hydration_goal":3000}
+
+RULES:
+- ALWAYS return complete responses, never cut off mid-sentence
+- For multi-step requests, return ALL actions needed in the actions array
+- If request is ambiguous, make your best assumption and state it
+- Never ask for follow-up info — if you need more, say "Try again with: [exact example]"
+- If your response ends with a question for clarification, set needsFollowUp: true
+- Keep responses under 180 words, warm and direct
+- Use the user's actual data numbers in responses
+
+Return format (STRICT — always valid JSON at end):
+ACTIONS:[{"type":"action_type","data":{...}},{"type":"action_type2","data":{...}}]
+FOLLOWUP:true or FOLLOWUP:false`;
 
     const geminiRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
@@ -186,42 +138,41 @@ Rules:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message }] }],
-          generationConfig: { maxOutputTokens: 1500, temperature: 0.7 },
+          generationConfig: { maxOutputTokens: 2500, temperature: 0.7 },
         }),
       }
     );
 
     const geminiData = await geminiRes.json();
-    const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn\'t process that.";
+    const raw = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // Parse action if present
-    let action = null;
+    // Parse ACTIONS and FOLLOWUP from response
+    let actions: any[] = [];
+    let needsFollowUp = false;
     let text = raw;
-    const actionMarker = "ACTION:";
-    const markerIdx = raw.lastIndexOf(actionMarker);
-    if (markerIdx >= 0) {
-      const jsonStr = raw.slice(markerIdx + actionMarker.length).trim();
+
+    const actionsMatch = raw.match(/ACTIONS:\s*(\[.*?\])\s*(?:FOLLOWUP:|$)/s);
+    const followupMatch = raw.match(/FOLLOWUP:\s*(true|false)/i);
+
+    if (actionsMatch) {
       try {
-        // Find matching braces
-        let depth = 0, end = -1;
-        for (let i = 0; i < jsonStr.length; i++) {
-          if (jsonStr[i] === "{") depth++;
-          else if (jsonStr[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
-        }
-        if (end >= 0) action = JSON.parse(jsonStr.slice(0, end + 1));
-      } catch (e) { console.error("Action parse error:", e); }
-      text = raw.slice(0, markerIdx).trim();
+        const parsed = JSON.parse(actionsMatch[1]);
+        actions = Array.isArray(parsed) ? parsed.filter((a: any) => a.type !== "none") : [];
+      } catch (e) { console.error("Actions parse error:", e); }
+      text = raw.slice(0, raw.indexOf("ACTIONS:")).trim();
     }
+
+    if (followupMatch) {
+      needsFollowUp = followupMatch[1].toLowerCase() === "true";
+      if (!actionsMatch) text = raw.slice(0, raw.indexOf("FOLLOWUP:")).trim();
+    }
+
     if (!text) text = raw;
 
-    // Rough cost estimate: ~500 input tokens + ~200 output tokens per call
-    const estimatedCostCents = Math.round((500 * 0.075 + 200 * 0.30) / 1000 * 100) / 100;
-    await userSupabase.from("ai_usage")
-      .update({ cost_cents: ((usageRow?.cost_cents || 0) + estimatedCostCents) })
-      .eq("user_id", userId)
-      .eq("date", today);
+    const estimatedCostCents = Math.round((500 * 0.075 + 300 * 0.30) / 1000 * 100) / 100;
+    await userSupabase.from("ai_usage").update({ cost_cents: ((usageRow?.cost_cents || 0) + estimatedCostCents) }).eq("user_id", userId).eq("date", today);
 
-    return NextResponse.json({ text, action, generatedAt: new Date().toISOString(), remainingCalls: DAILY_LIMIT - currentCount - 1 });
+    return NextResponse.json({ text, actions, needsFollowUp, remainingCalls: DAILY_LIMIT - currentCount - 1 });
   } catch (e: any) {
     console.error("Agent error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });

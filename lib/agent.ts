@@ -4,13 +4,14 @@ import { addNutritionEntry, getSettings, updateSettings } from "@/lib/supabase/q
 import { format } from "date-fns";
 
 export interface AgentAction {
-  type: "nutrition_log" | "workout_plan" | "workout_session_log" | "finance_split" | "finance_goal_add" | "finance_transaction" | "macro_targets" | "task_add" | "task_complete" | "task_delete" | "hydration_log" | "sleep_log" | "body_weight" | "steps_log" | "settings_update" | "none";
+  type: string;
   data?: any;
 }
 
 export interface AgentResult {
   text: string;
-  action: AgentAction | null;
+  actions: AgentAction[];
+  needsFollowUp: boolean;
 }
 
 let _sessionHistory: {role:"user"|"ai";text:string}[] = [];
@@ -25,245 +26,235 @@ export async function runAgent(message: string, history: {role:"user"|"ai";text:
   const res = await fetch("/api/agent", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: session.user.id, accessToken: session.access_token, message, history: history.length > 0 ? history : _sessionHistory }),
+    body: JSON.stringify({
+      userId: session.user.id,
+      accessToken: session.access_token,
+      message,
+      history: history.length > 0 ? history : _sessionHistory,
+    }),
   });
 
-  if (res.status === 429) throw new Error("RATE_LIMITED");
   const data = await res.json();
-  console.log("Agent response:", JSON.stringify(data).slice(0, 200));
-  if (!res.ok || data.error) throw new Error(data.error || "Agent request failed");
-  if (!data.text) throw new Error("No text in response: " + JSON.stringify(data).slice(0, 100));
-  return data;
+  if (data.error) {
+    if (data.error.includes("rate limit") || data.error.includes("cmon") || data.error.includes("Cmon")) {
+      throw new Error("RATE_LIMITED");
+    }
+    throw new Error(data.error);
+  }
+
+  return {
+    text: data.text || "",
+    actions: data.actions || [],
+    needsFollowUp: data.needsFollowUp || false,
+  };
+}
+
+export async function executeAllActions(actions: AgentAction[]): Promise<string[]> {
+  const results: string[] = [];
+  for (const action of actions) {
+    try {
+      const r = await executeAgentAction(action);
+      if (r) results.push(r);
+    } catch (e: any) {
+      results.push(`Failed: ${action.type} — ${e.message}`);
+    }
+  }
+  return results;
 }
 
 export async function executeAgentAction(action: AgentAction): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("Not logged in");
   const today = format(new Date(), "yyyy-MM-dd");
 
-  if (action.type === "nutrition_log" && action.data) {
-    await addNutritionEntry({
-      id: Math.random().toString(36).slice(2),
-      date: today,
-      timestamp: Date.now(),
-      food: action.data.food || "Food",
-      amount: action.data.amount || "1 serving",
-      meal: action.data.meal || "snack",
-      calories: action.data.calories || 0,
-      protein: action.data.protein || 0,
-      carbs: action.data.carbs || 0,
-      fat: action.data.fat || 0,
-      fiber: action.data.fiber || 0,
-      source: "manual",
-    });
-    return "Logged to nutrition ✓";
-  }
-
-  if (action.type === "macro_targets" && action.data) {
-    const settings = await getSettings();
-    await updateSettings({
-      ...settings,
-      macroTargets: {
-        ...settings.macroTargets,
-        calories: action.data.calories || settings.macroTargets.calories,
-        protein: action.data.protein || settings.macroTargets.protein,
-        carbs: action.data.carbs || settings.macroTargets.carbs,
-        fat: action.data.fat || settings.macroTargets.fat,
-      },
-    });
-    return "Macro targets updated ✓";
-  }
-
-  if (action.type === "finance_split" && action.data?.splits) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    const { data: goals } = await supabase.from("finance_goals").select("*").eq("user_id", session.user.id);
-    for (const split of action.data.splits) {
-      const goal = (goals || []).find((g: any) => g.name.toLowerCase().includes(split.goalName.toLowerCase()) || split.goalName.toLowerCase().includes(g.name.toLowerCase()));
-      await supabase.from("finance_transactions").insert({
+  // ── NUTRITION ──
+  if (action.type === "nutrition_log") {
+    const entries = Array.isArray(action.data?.entries) ? action.data.entries : [action.data];
+    for (const e of entries) {
+      await addNutritionEntry({
         id: Math.random().toString(36).slice(2),
         user_id: session.user.id,
-        date: today,
+        date: e.date || today,
+        food: e.food || e.name || "Unknown",
+        calories: e.calories || 0,
+        protein: e.protein || 0,
+        carbs: e.carbs || 0,
+        fat: e.fat || 0,
+        fiber: e.fiber || 0,
+        meal: e.meal || "snack",
         timestamp: Date.now(),
-        amount: split.amount,
-        description: `AI split to ${split.goalName}`,
-        category: "savings",
-        type: "income",
-        goal_id: goal?.id ?? null,
       });
     }
-    return "Finance split logged ✓";
+    return `Logged ${entries.length} food item${entries.length > 1 ? "s" : ""} ✓`;
   }
 
-  if (action.type === "finance_goal_add" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    const goals = Array.isArray(action.data.goals) ? action.data.goals : [action.data];
-    for (const g of goals) {
-      await supabase.from("finance_goals").insert({
-        id: Math.random().toString(36).slice(2),
-        user_id: session.user.id,
-        name: g.name,
-        target_amount: g.targetAmount || g.target || 0,
-        current_amount: g.currentAmount || 0,
-        category: g.category || "savings",
-        color: g.color || "#6366f1",
-        created_at: Date.now(),
-      });
+  if (action.type === "nutrition_delete") {
+    await supabase.from("nutrition_entries").delete().eq("user_id", session.user.id).ilike("food", `%${action.data?.food}%`).eq("date", today);
+    return `Removed ${action.data?.food} from log ✓`;
+  }
+
+  if (action.type === "macro_targets_update") {
+    await updateSettings({ macro_targets: action.data });
+    return `Macro targets updated ✓`;
+  }
+
+  // ── HYDRATION ──
+  if (action.type === "hydration_log") {
+    const entries = Array.isArray(action.data?.entries) ? action.data.entries : [action.data];
+    for (const e of entries) {
+      await supabase.from("hydration_entries").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: e.amount || 250, timestamp: Date.now() });
     }
-    return goals.length > 1 ? `Added ${goals.length} finance goals ✓` : `Goal "${goals[0].name}" created ✓`;
+    const total = entries.reduce((s: number, e: any) => s + (e.amount || 250), 0);
+    return `Logged ${total}ml water ✓`;
   }
 
-  if (action.type === "body_weight" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("body_weight_entries").insert({
-      id: Math.random().toString(36).slice(2),
-      user_id: session.user.id,
-      date: today,
-      weight: action.data.weight,
-      unit: action.data.unit || "lbs",
-      timestamp: Date.now(),
-    });
-    return `Weight logged: ${action.data.weight}${action.data.unit || "lbs"} ✓`;
+  if (action.type === "hydration_delete") {
+    await supabase.from("hydration_entries").delete().eq("user_id", session.user.id).eq("date", today).limit(1);
+    return `Removed hydration entry ✓`;
   }
 
-  if (action.type === "task_add" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    const tasks = Array.isArray(action.data.tasks) ? action.data.tasks : [action.data];
+  // ── SLEEP ──
+  if (action.type === "sleep_log") {
+    await supabase.from("sleep_entries").upsert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: action.data?.date || today, duration: action.data?.duration || 8, quality: action.data?.quality || 3, bedtime: action.data?.bedtime || "23:00", wake_time: action.data?.wakeTime || "07:00", timestamp: Date.now() });
+    return `Sleep logged: ${action.data?.duration}h ✓`;
+  }
+
+  // ── STEPS ──
+  if (action.type === "steps_log") {
+    await supabase.from("step_entries").upsert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, count: action.data?.steps || action.data?.count || 0, timestamp: Date.now() });
+    return `Steps logged: ${action.data?.steps || action.data?.count} ✓`;
+  }
+
+  // ── TASKS ──
+  if (action.type === "task_add") {
+    const tasks = Array.isArray(action.data?.tasks) ? action.data.tasks : [action.data];
     for (const t of tasks) {
-      await supabase.from("tasks").insert({
-        id: Math.random().toString(36).slice(2),
-        user_id: session.user.id,
-        date: today,
-        title: t.title || t,
-        completed: false,
-        priority: t.priority || 2,
-        created_at: Date.now(),
-      });
+      await supabase.from("tasks").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: t.date || today, title: t.title || t, completed: false, priority: t.priority || 2, created_at: Date.now() });
     }
-    return tasks.length > 1 ? `Added ${tasks.length} tasks ✓` : `Task added ✓`;
+    return `Added ${tasks.length} task${tasks.length > 1 ? "s" : ""} ✓`;
   }
 
-  if (action.type === "hydration_log" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("hydration_entries").insert({
-      id: Math.random().toString(36).slice(2),
-      user_id: session.user.id,
-      date: today,
-      amount: action.data.amount || 250,
-      timestamp: Date.now(),
-    });
-    return `Logged ${action.data.amount}ml water ✓`;
-  }
-
-  if (action.type === "sleep_log" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("sleep_entries").upsert({
-      id: Math.random().toString(36).slice(2),
-      user_id: session.user.id,
-      date: today,
-      duration: action.data.duration || 8,
-      quality: action.data.quality || 3,
-      bedtime: action.data.bedtime || "23:00",
-      wake_time: action.data.wakeTime || "07:00",
-      timestamp: Date.now(),
-    });
-    return `Sleep logged ✓`;
-  }
-
-  if (action.type === "workout_session_log" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("workout_sessions").insert({
-      id: Math.random().toString(36).slice(2),
-      user_id: session.user.id,
-      date: today,
-      type: action.data.type || "Custom",
-      duration: action.data.duration || 45,
-      intensity: action.data.intensity || 3,
-      exercises: action.data.exercises || [],
-      timestamp: Date.now(),
-    });
-    return `Workout logged: ${action.data.type} ${action.data.duration}min ✓`;
-  }
-
-  if (action.type === "finance_transaction" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    const txns = Array.isArray(action.data.transactions) ? action.data.transactions : [action.data];
-    for (const t of txns) {
-      await supabase.from("finance_transactions").insert({
-        id: Math.random().toString(36).slice(2),
-        user_id: session.user.id,
-        date: today,
-        amount: t.amount || 0,
-        type: t.type || "expense",
-        category: t.category || "other",
-        note: t.note || t.description || "",
-        goal_id: null,
-        timestamp: Date.now(),
-      });
-    }
-    return txns.length > 1 ? `Logged ${txns.length} transactions ✓` : `Logged ${txns[0].type}: $${txns[0].amount} (${txns[0].category}) ✓`;
-  }
-
-  if (action.type === "task_complete" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    const titles = Array.isArray(action.data.titles) ? action.data.titles : [action.data.title];
+  if (action.type === "task_complete") {
+    const titles = Array.isArray(action.data?.titles) ? action.data.titles : [action.data?.title];
     for (const title of titles) {
       await supabase.from("tasks").update({ completed: true }).eq("user_id", session.user.id).ilike("title", `%${title}%`).eq("date", today);
     }
     return `Task${titles.length > 1 ? "s" : ""} completed ✓`;
   }
 
-  if (action.type === "task_delete" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("tasks").delete().eq("user_id", session.user.id).ilike("title", `%${action.data.title}%`);
-    return `Task deleted ✓`;
+  if (action.type === "task_delete") {
+    const titles = Array.isArray(action.data?.titles) ? action.data.titles : [action.data?.title];
+    for (const title of titles) {
+      await supabase.from("tasks").delete().eq("user_id", session.user.id).ilike("title", `%${title}%`);
+    }
+    return `Task${titles.length > 1 ? "s" : ""} deleted ✓`;
   }
 
-  if (action.type === "steps_log" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("step_entries").upsert({
-      id: Math.random().toString(36).slice(2),
-      user_id: session.user.id,
-      date: today,
-      count: action.data.steps || action.data.count || 0,
-      timestamp: Date.now(),
-    });
-    return `Steps logged: ${action.data.steps || action.data.count} ✓`;
+  if (action.type === "recurring_task_add") {
+    const tasks = Array.isArray(action.data?.tasks) ? action.data.tasks : [action.data];
+    for (const t of tasks) {
+      await supabase.from("recurring_tasks").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, title: t.title, priority: t.priority || 2, frequency: t.frequency || "daily", created_at: Date.now() });
+    }
+    return `Added ${tasks.length} recurring task${tasks.length > 1 ? "s" : ""} ✓`;
   }
 
-  if (action.type === "settings_update" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("user_settings").update(action.data).eq("user_id", session.user.id);
+  if (action.type === "recurring_task_delete") {
+    await supabase.from("recurring_tasks").delete().eq("user_id", session.user.id).ilike("title", `%${action.data?.title}%`);
+    return `Recurring task deleted ✓`;
+  }
+
+  // ── WORKOUT ──
+  if (action.type === "workout_session_log") {
+    await supabase.from("workout_sessions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, type: action.data?.type || "Custom", duration: action.data?.duration || 45, intensity: action.data?.intensity || 3, exercises: action.data?.exercises || [], timestamp: Date.now() });
+    return `Workout logged: ${action.data?.type} ${action.data?.duration}min ✓`;
+  }
+
+  if (action.type === "workout_plan_save") {
+    await supabase.from("workout_plans").upsert({ id: action.data?.id || Math.random().toString(36).slice(2), user_id: session.user.id, name: action.data?.name, type: action.data?.type || "Push", exercises: action.data?.exercises || [], created_at: Date.now() });
+    return `Workout plan "${action.data?.name}" saved ✓`;
+  }
+
+  if (action.type === "workout_plan_delete") {
+    await supabase.from("workout_plans").delete().eq("user_id", session.user.id).ilike("name", `%${action.data?.name}%`);
+    return `Workout plan deleted ✓`;
+  }
+
+  // ── FINANCE ──
+  if (action.type === "finance_transaction_log") {
+    const txns = Array.isArray(action.data?.transactions) ? action.data.transactions : [action.data];
+    for (const t of txns) {
+      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: t.amount || 0, type: t.type || "expense", category: t.category || "other", note: t.note || t.description || "", goal_id: null, timestamp: Date.now() });
+    }
+    return `Logged ${txns.length} transaction${txns.length > 1 ? "s" : ""} ✓`;
+  }
+
+  if (action.type === "finance_transaction_delete") {
+    await supabase.from("finance_transactions").delete().eq("user_id", session.user.id).eq("date", today).ilike("note", `%${action.data?.note}%`);
+    return `Transaction deleted ✓`;
+  }
+
+  if (action.type === "finance_goal_add") {
+    const goals = Array.isArray(action.data?.goals) ? action.data.goals : [action.data];
+    for (const g of goals) {
+      await supabase.from("finance_goals").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, name: g.name, target_amount: g.targetAmount || g.target || 0, current_amount: g.currentAmount || 0, category: g.category || "savings", color: g.color || "#6366f1", created_at: Date.now() });
+    }
+    return `Created ${goals.length} goal${goals.length > 1 ? "s" : ""} ✓`;
+  }
+
+  if (action.type === "finance_goal_update") {
+    const goals = Array.isArray(action.data?.goals) ? action.data.goals : [action.data];
+    for (const g of goals) {
+      const { data: existing } = await supabase.from("finance_goals").select("*").eq("user_id", session.user.id).ilike("name", `%${g.name}%`).single();
+      if (existing) {
+        const newAmount = g.setAmount !== undefined ? g.setAmount : (existing.current_amount + (g.addAmount || 0) - (g.subtractAmount || 0));
+        await supabase.from("finance_goals").update({ current_amount: Math.max(0, newAmount), target_amount: g.targetAmount || existing.target_amount }).eq("id", existing.id);
+      }
+    }
+    return `Goal${goals.length > 1 ? "s" : ""} updated ✓`;
+  }
+
+  if (action.type === "finance_goal_delete") {
+    const goals = Array.isArray(action.data?.goals) ? action.data.goals : [action.data];
+    for (const g of goals) {
+      await supabase.from("finance_goals").delete().eq("user_id", session.user.id).ilike("name", `%${g.name || g}%`);
+    }
+    return `Goal${goals.length > 1 ? "s" : ""} deleted ✓`;
+  }
+
+  if (action.type === "finance_split") {
+    const { data: { session: s2 } } = await supabase.auth.getSession();
+    const { data: goals } = await supabase.from("finance_goals").select("*").eq("user_id", s2?.user.id || session.user.id);
+    const splits = action.data?.splits || [];
+    for (const split of splits) {
+      const goal = (goals || []).find((g: any) => g.name.toLowerCase().includes(split.goalName?.toLowerCase()) || split.goalName?.toLowerCase().includes(g.name.toLowerCase()));
+      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: split.amount, type: "income", category: "savings", note: `Split to ${split.goalName}`, goal_id: goal?.id ?? null, timestamp: Date.now() });
+      if (goal) {
+        await supabase.from("finance_goals").update({ current_amount: (goal.current_amount || 0) + split.amount }).eq("id", goal.id);
+      }
+    }
+    return `Split across ${splits.length} goals ✓`;
+  }
+
+  // ── BODY WEIGHT ──
+  if (action.type === "body_weight_log") {
+    await supabase.from("body_weight_entries").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, weight: action.data?.weight, unit: action.data?.unit || "lbs", note: action.data?.note || "", timestamp: Date.now() });
+    return `Weight logged: ${action.data?.weight}${action.data?.unit || "lbs"} ✓`;
+  }
+
+  if (action.type === "body_weight_delete") {
+    await supabase.from("body_weight_entries").delete().eq("user_id", session.user.id).eq("date", today);
+    return `Weight entry deleted ✓`;
+  }
+
+  // ── SETTINGS ──
+  if (action.type === "settings_update") {
+    await updateSettings(action.data);
     return `Settings updated ✓`;
   }
 
-  if (action.type === "workout_plan" && action.data) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) throw new Error("Not logged in");
-    await supabase.from("workout_plans").insert({
-      id: Math.random().toString(36).slice(2),
-      user_id: session.user.id,
-      name: action.data.name,
-      type: action.data.type || "Push",
-      exercises: action.data.exercises || [],
-      created_at: Date.now(),
-    });
-    return "Workout plan saved ✓";
-  }
-
-  return "Done ✓";
+  return `Done ✓`;
 }
 
-// Speak text aloud using Web Speech Synthesis
 export function speak(text: string, voiceName?: string) {
   if (typeof window === "undefined") return;
   window.speechSynthesis?.cancel();
@@ -276,14 +267,7 @@ export function speak(text: string, voiceName?: string) {
     const v = voices.find(v => v.name === voiceName);
     if (v) utt.voice = v;
   } else {
-    // Priority order of natural voices
-    const preferred = voices.find(v =>
-      v.name === "Samantha" ||
-      v.name.includes("Google US English") ||
-      v.name.includes("Google UK English Female") ||
-      v.name === "Karen" ||
-      v.name === "Moira"
-    );
+    const preferred = voices.find(v => v.name === "Samantha" || v.name.includes("Google US English") || v.name.includes("Google UK English Female") || v.name === "Karen");
     if (preferred) utt.voice = preferred;
   }
   window.speechSynthesis.speak(utt);
@@ -299,20 +283,12 @@ export function getAvailableVoices(): { name: string; lang: string; label: strin
     { match: "Karen", label: "🇦🇺 Karen (Australian)" },
     { match: "Moira", label: "🇮🇪 Moira (Irish)" },
     { match: "Daniel", label: "🇬🇧 Daniel (British Male)" },
-    { match: "Tessa", label: "🇿🇦 Tessa (South African)" },
-    { match: "Rishi", label: "🇮🇳 Rishi (Indian)" },
   ];
   const voices = window.speechSynthesis.getVoices().filter(v => v.lang.startsWith("en"));
   const result: { name: string; lang: string; label: string }[] = [];
   for (const nv of NICE_VOICES) {
     const found = voices.find(v => v.name.includes(nv.match));
     if (found) result.push({ name: found.name, lang: found.lang, label: nv.label });
-  }
-  // Add remaining en voices not already included
-  for (const v of voices) {
-    if (!result.find(r => r.name === v.name) && result.length < 10) {
-      result.push({ name: v.name, lang: v.lang, label: v.name });
-    }
   }
   return result;
 }

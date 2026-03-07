@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useLifeStore } from "@/store/useLifeStore";
-import { executeAgentAction, speak, getAvailableVoices, appendAgentHistory } from "@/lib/agent";
+import { executeAllActions, speak, getAvailableVoices, appendAgentHistory } from "@/lib/agent";
 import { useVoice } from "@/hooks/useVoice";
 import { getVoiceExamples, saveVoiceExamples } from "@/lib/supabase/queries";
 
@@ -60,6 +60,8 @@ export default function VoiceOverlay() {
   const [selectedVoice, setSelectedVoice] = useState<string>("");
   const [chatHistory, setChatHistory] = useState<{role:"user"|"ai";text:string}[]>([]);
   const [followUpText, setFollowUpText] = useState("");
+  const [showFollowUp, setShowFollowUp] = useState(false);
+  const [chatHistory, setChatHistory] = useState<{role:"user"|"ai";text:string}[]>([]);
   const [showVoicePicker, setShowVoicePicker] = useState(false);
   const [availableVoices, setAvailableVoices] = useState<{name:string;lang:string}[]>([]);
   const hasStarted = useRef(false);
@@ -120,13 +122,13 @@ export default function VoiceOverlay() {
   };
 
   const handleAgentConfirm = async () => {
-    if (!agentResult?.action || agentResult.action.type === "none") {
+    if (!agentResult?.actions || agentResult.actions.length === 0) {
       setVoiceOpen(false);
       return;
     }
     setAgentSaving(true);
     try {
-      await executeAgentAction(agentResult.action);
+      await executeAllActions(agentResult.actions || []);
       setAgentDone(true);
       // no auto-speak after action
       setTimeout(() => { setVoiceOpen(false); setAgentResult(null); setAgentDone(false); window.location.reload(); }, 2000);
@@ -179,7 +181,7 @@ export default function VoiceOverlay() {
 
   // ── AGENT RESPONSE ──
   if (state === "confirming" && agentResult) {
-    const hasAction = agentResult.action && agentResult.action.type !== "none";
+    const hasAction = agentResult.actions && agentResult.actions.length > 0;
     return (
       <div style={sheet} onClick={close}>
         <div style={card} onClick={e => e.stopPropagation()}>
@@ -210,15 +212,31 @@ export default function VoiceOverlay() {
             <p style={{ fontSize: "14px", color: "#374151", fontWeight: 600, lineHeight: 1.6 }}>{agentResult.text}</p>
           </div>
 
-          {hasAction && agentResult.action && (
+          {hasAction && agentResult.actions && agentResult.actions.length > 0 && (
             <div style={{ background: "linear-gradient(135deg,#e0e7ff,#ede9fe)", borderRadius: "14px", padding: "12px 14px", marginBottom: "14px" }}>
-              <p style={{ fontSize: "10px", fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "6px" }}>Proposed Action</p>
-              <p style={{ fontSize: "12px", fontWeight: 700, color: "#3730a3" }}>
-                {agentResult.action.type === "nutrition_log" && `Log: ${agentResult.action.data?.food} (${agentResult.action.data?.calories} cal)`}
-                {agentResult.action.type === "macro_targets" && `Update macros: ${agentResult.action.data?.calories} kcal, ${agentResult.action.data?.protein}g protein`}
-                {agentResult.action.type === "finance_split" && `Split money across ${agentResult.action.data?.splits?.length} goals`}
-                {agentResult.action.type === "workout_plan" && `Save workout: ${agentResult.action.data?.name} (${agentResult.action.data?.exercises?.length} exercises)`}
+              <p style={{ fontSize: "10px", fontWeight: 800, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: "8px" }}>
+                {agentResult.actions.length > 1 ? `${agentResult.actions.length} Actions Queued` : "Proposed Action"}
               </p>
+              {agentResult.actions.map((a: any, i: number) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                  <span style={{ fontSize: "13px" }}>
+                    {a.type.includes("nutrition") ? "🍽️" : a.type.includes("finance") ? "💰" : a.type.includes("task") ? "✅" : a.type.includes("workout") ? "💪" : a.type.includes("sleep") ? "😴" : a.type.includes("hydration") ? "💧" : a.type.includes("weight") ? "⚖️" : a.type.includes("steps") ? "👟" : a.type.includes("settings") ? "⚙️" : "✨"}
+                  </span>
+                  <p style={{ fontSize: "11px", fontWeight: 700, color: "#3730a3", margin: 0 }}>
+                    {a.type.replace(/_/g, " ")}
+                    {a.data?.food ? `: ${a.data.food}` : ""}
+                    {a.data?.amount && !a.data.goals && !a.data.splits ? ` $${a.data.amount}` : ""}
+                    {a.data?.goals ? `: ${Array.isArray(a.data.goals) ? a.data.goals.map((g:any) => g.name || g).join(", ") : ""}` : ""}
+                    {a.data?.tasks ? `: ${Array.isArray(a.data.tasks) ? a.data.tasks.map((t:any) => t.title || t).join(", ") : ""}` : ""}
+                    {a.data?.splits ? `: ${a.data.splits.map((s:any) => `${s.goalName} $${s.amount}`).join(" · ")}` : ""}
+                    {a.data?.weight ? `: ${a.data.weight}${a.data.unit || "lbs"}` : ""}
+                    {a.data?.duration && a.type.includes("workout") ? `: ${a.data.type || ""} ${a.data.duration}min` : ""}
+                    {a.data?.duration && a.type.includes("sleep") ? `: ${a.data.duration}h` : ""}
+                    {a.data?.steps ? `: ${a.data.steps} steps` : ""}
+                    {a.data?.entries ? `: ${Array.isArray(a.data.entries) ? a.data.entries.map((e:any) => e.food || `${e.amount}ml`).join(", ") : ""}` : ""}
+                  </p>
+                </div>
+              ))}
             </div>
           )}
 
@@ -275,15 +293,25 @@ export default function VoiceOverlay() {
 
           {/* Follow-up */}
           {!agentDone && (
-            <div style={{ marginTop: "12px", display: "flex", gap: "8px" }}>
-              <input value={followUpText} onChange={e => setFollowUpText(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); cancel(); submitText(t); } }}
-                placeholder="Ask a follow-up..."
-                style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #e5e7eb", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
-              <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setAgentResult(null); cancel(); submitText(t); } else { handleAgentFollowUp(); } }}
-                style={{ width: 46, height: 46, borderRadius: "12px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontSize: "20px", cursor: "pointer", flexShrink: 0 }}>
-                {followUpText.trim() ? "→" : "🎙️"}
-              </button>
+            <div style={{ marginTop: "10px" }}>
+              {agentResult.needsFollowUp || showFollowUp ? (
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input value={followUpText} onChange={e => setFollowUpText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setShowFollowUp(false); appendAgentHistory("user", t); setAgentResult(null); submitText(t); } }}
+                    placeholder="Follow up..."
+                    autoFocus
+                    style={{ flex: 1, background: "#f7f8fc", border: "1.5px solid #6366f1", borderRadius: "12px", padding: "10px 13px", fontSize: "13px", fontWeight: 600, color: "#111118", outline: "none", fontFamily: "inherit" }} />
+                  <button onClick={() => { if (followUpText.trim()) { const t = followUpText.trim(); setFollowUpText(""); setShowFollowUp(false); appendAgentHistory("user", t); setAgentResult(null); submitText(t); } }}
+                    style={{ width: 44, height: 44, borderRadius: "12px", background: "linear-gradient(135deg,#667eea,#764ba2)", border: "none", color: "white", fontSize: "18px", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>→</button>
+                  <button onClick={() => setShowFollowUp(false)}
+                    style={{ width: 44, height: 44, borderRadius: "12px", background: "#f1f5f9", border: "none", color: "#9ca3af", fontSize: "16px", cursor: "pointer", flexShrink: 0 }}>✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setShowFollowUp(true)}
+                  style={{ background: "none", border: "none", color: "#9ca3af", fontSize: "11px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: "4px 8px", borderRadius: "8px" }}>
+                  ↩ follow up
+                </button>
+              )}
             </div>
           )}
 
