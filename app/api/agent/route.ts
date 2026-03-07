@@ -199,6 +199,7 @@ FOLLOWUP:true or FOLLOWUP:false`;
       const merged = Array.from(new Set(memoryFacts.concat(newFacts))).slice(0, 50);
       await serviceSupabase.from("ai_memory").delete().eq("user_id", userId);
       const { error: memErr } = await serviceSupabase.from("ai_memory").insert({
+        id: Math.random().toString(36).slice(2),
         user_id: userId,
         facts: merged,
         last_updated: new Date().toISOString(),
