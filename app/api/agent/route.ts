@@ -225,7 +225,7 @@ FOLLOWUP:true or FOLLOWUP:false`;
     // Strip MEMORY line from text
     text = text.replace(/MEMORY:\s*\[[\s\S]*?\]/, "").trim();
 
-    if (!text) text = raw.replace(/ACTIONS:[\s\S]*/, "").replace(/FOLLOWUP:\s*(true|false)/gi, "").replace(/MEMORY:\s*\[[\s\S]*?\]/, "").trim();
+    if (!text) text = "Got it! Here's what I'll do:";
 
     // Parse MEMORY facts
     let newFacts: string[] = [];
