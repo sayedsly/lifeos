@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       { data: hydration }, { data: steps }, { data: workouts },
       { data: tasks }, { data: settingsRow }, { data: financeGoals },
       { data: transactions }, { data: bodyWeight }, { data: recurringTasks },
+      { data: aiMemoryRow },
     ] = await Promise.all([
       userSupabase.from("momentum_snapshots").select("date,score,breakdown").eq("user_id", userId).gte("date", weekAgo).order("date"),
       userSupabase.from("nutrition_entries").select("date,calories,protein,carbs,fat,fiber,food,meal").eq("user_id", userId).gte("date", weekAgo).order("timestamp", { ascending: false }),
@@ -44,6 +45,7 @@ export async function POST(req: NextRequest) {
       userSupabase.from("finance_transactions").select("*").eq("user_id", userId).gte("date", weekAgo),
       userSupabase.from("body_weight_entries").select("date,weight,unit").eq("user_id", userId).order("timestamp", { ascending: false }).limit(10),
       userSupabase.from("recurring_tasks").select("*").eq("user_id", userId),
+      userSupabase.from("ai_memory").select("facts").eq("user_id", userId).single(),
     ]);
 
     const s = settingsRow || {};
@@ -88,6 +90,11 @@ BODY & SETTINGS:
 - Recurring tasks: ${(recurringTasks || []).map((t: any) => t.title).join(", ") || "none"}
 `;
 
+    const memoryFacts: string[] = aiMemoryRow?.facts || [];
+    const memoryContext = memoryFacts.length > 0
+      ? "\n\nWHAT I KNOW ABOUT YOU (persistent memory):\n" + memoryFacts.map((f: string) => `- ${f}`).join("\n")
+      : "";
+
     const historyContext = history && history.length > 0
       ? "\n\nCONVERSATION HISTORY (same session — continue this thread):\n" + history.slice(-8).map((m: any) => `${m.role === "user" ? "User" : "You"}: ${m.text}`).join("\n")
       : "";
@@ -127,6 +134,10 @@ RULES:
 - Keep responses under 180 words, warm and direct
 - Use the user's actual data numbers in responses
 
+If the user shares something worth remembering long-term (preferences, habits, goals, schedule), include it as:
+MEMORY:["fact 1","fact 2"]
+Say "I'll remember that" when you store something. Only store genuinely useful persistent facts.
+
 Return format (STRICT — always valid JSON at end):
 ACTIONS:[{"type":"action_type","data":{...}},{"type":"action_type2","data":{...}}]
 FOLLOWUP:true or FOLLOWUP:false`;
@@ -137,7 +148,7 @@ FOLLOWUP:true or FOLLOWUP:false`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message }] }],
+          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message + memoryContext }] }],
           generationConfig: { maxOutputTokens: 2500, temperature: 0.7 },
         }),
       }
@@ -169,6 +180,24 @@ FOLLOWUP:true or FOLLOWUP:false`;
     }
 
     if (!text) text = raw;
+
+    // Parse MEMORY facts
+    let newFacts: string[] = [];
+    const memoryMatch = raw.match(/MEMORY:\s*(\[[\s\S]*?\])/);
+    if (memoryMatch) {
+      try { newFacts = JSON.parse(memoryMatch[1]); } catch (e) {}
+      text = text.replace(/MEMORY:\s*\[[\s\S]*?\]/, "").trim();
+    }
+
+    // Upsert ai_memory if new facts found
+    if (newFacts.length > 0) {
+      const merged = Array.from(new Set(memoryFacts.concat(newFacts))).slice(0, 50); // cap at 50 facts
+      await userSupabase.from("ai_memory").upsert({
+        user_id: userId,
+        facts: merged,
+        last_updated: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+    }
 
     const estimatedCostCents = Math.round((500 * 0.075 + 300 * 0.30) / 1000 * 100) / 100;
     await userSupabase.from("ai_usage").update({ cost_cents: ((usageRow?.cost_cents || 0) + estimatedCostCents) }).eq("user_id", userId).eq("date", today);
