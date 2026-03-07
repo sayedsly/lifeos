@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     const todayTasks = (tasks || []).filter((t: any) => t.date === today);
     const latestWeight = bodyWeight?.[0];
 
+    const memoryFacts: string[] = aiMemoryRow?.facts || [];
     const dataContext = `
 TODAY (${today}):
 - Calories: ${totalCals}/${userGoals.calories} kcal | Protein: ${totalProtein}g/${userGoals.protein}g
@@ -88,12 +89,8 @@ BODY & SETTINGS:
 - Latest weight: ${latestWeight ? `${latestWeight.weight}${latestWeight.unit} on ${latestWeight.date}` : "not logged"}
 - Goals: ${JSON.stringify(userGoals)}
 - Recurring tasks: ${(recurringTasks || []).map((t: any) => t.title).join(", ") || "none"}
+${memoryFacts.length > 0 ? "\nMY PERSISTENT MEMORY ABOUT YOU:\n" + memoryFacts.map((f: string) => `- ${f}`).join("\n") : ""}
 `;
-
-    const memoryFacts: string[] = aiMemoryRow?.facts || [];
-    const memoryContext = memoryFacts.length > 0
-      ? "\n\nWHAT I KNOW ABOUT YOU (persistent memory):\n" + memoryFacts.map((f: string) => `- ${f}`).join("\n")
-      : "";
 
     const historyContext = history && history.length > 0
       ? "\n\nCONVERSATION HISTORY (same session — continue this thread):\n" + history.slice(-8).map((m: any) => `${m.role === "user" ? "User" : "You"}: ${m.text}`).join("\n")
@@ -150,7 +147,7 @@ FOLLOWUP:true or FOLLOWUP:false`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message + memoryContext }] }],
+          contents: [{ role: "user", parts: [{ text: systemPrompt + "\n\n" + dataContext + historyContext + "\n\nUser says: " + message }] }],
           generationConfig: { maxOutputTokens: 2500, temperature: 0.7 },
         }),
       }
