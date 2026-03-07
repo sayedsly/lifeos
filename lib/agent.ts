@@ -184,20 +184,20 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
   if (action.type === "finance_transaction_log") {
     const txns = Array.isArray(action.data?.transactions) ? action.data.transactions : [action.data];
     for (const t of txns) {
-      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: t.amount || 0, type: t.type || "expense", category: t.category || "other", note: t.note || t.description || "", goal_id: null, timestamp: Date.now() });
+      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: t.amount || 0, type: t.type || "expense", category: t.category || "Other", description: t.note || t.description || "", goal_id: null, timestamp: Date.now() });
     }
     return `Logged ${txns.length} transaction${txns.length > 1 ? "s" : ""} ✓`;
   }
 
   if (action.type === "finance_transaction_delete") {
-    await supabase.from("finance_transactions").delete().eq("user_id", session.user.id).eq("date", today).ilike("note", `%${action.data?.note}%`);
+    await supabase.from("finance_transactions").delete().eq("user_id", session.user.id).eq("date", today).ilike("description", `%${action.data?.note || action.data?.description}%`);
     return `Transaction deleted ✓`;
   }
 
   if (action.type === "finance_goal_add") {
     const goals = Array.isArray(action.data?.goals) ? action.data.goals : [action.data];
     for (const g of goals) {
-      await supabase.from("finance_goals").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, name: g.name, target_amount: g.targetAmount || g.target || 0, current_amount: g.currentAmount || 0, category: g.category || "savings", color: g.color || "#6366f1", created_at: Date.now() });
+      await supabase.from("finance_goals").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, name: g.name, target: g.targetAmount || g.target || 0, current: g.currentAmount || 0, currency: g.currency || "USD", created_at: Date.now() });
     }
     return `Created ${goals.length} goal${goals.length > 1 ? "s" : ""} ✓`;
   }
@@ -207,8 +207,8 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
     for (const g of goals) {
       const { data: existing } = await supabase.from("finance_goals").select("*").eq("user_id", session.user.id).ilike("name", `%${g.name}%`).single();
       if (existing) {
-        const newAmount = g.setAmount !== undefined ? g.setAmount : (existing.current_amount + (g.addAmount || 0) - (g.subtractAmount || 0));
-        await supabase.from("finance_goals").update({ current_amount: Math.max(0, newAmount), target_amount: g.targetAmount || existing.target_amount }).eq("id", existing.id);
+        const newAmount = g.setAmount !== undefined ? g.setAmount : (existing.current + (g.addAmount || 0) - (g.subtractAmount || 0));
+        await supabase.from("finance_goals").update({ current: Math.max(0, newAmount), target: g.targetAmount || existing.target }).eq("id", existing.id);
       }
     }
     return `Goal${goals.length > 1 ? "s" : ""} updated ✓`;
@@ -228,9 +228,9 @@ export async function executeAgentAction(action: AgentAction): Promise<string> {
     const splits = action.data?.splits || [];
     for (const split of splits) {
       const goal = (goals || []).find((g: any) => g.name.toLowerCase().includes(split.goalName?.toLowerCase()) || split.goalName?.toLowerCase().includes(g.name.toLowerCase()));
-      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: split.amount, type: "income", category: "savings", note: `Split to ${split.goalName}`, goal_id: goal?.id ?? null, timestamp: Date.now() });
+      await supabase.from("finance_transactions").insert({ id: Math.random().toString(36).slice(2), user_id: session.user.id, date: today, amount: split.amount, type: "income", category: "Savings", description: `Split to ${split.goalName}`, goal_id: goal?.id ?? null, timestamp: Date.now() });
       if (goal) {
-        await supabase.from("finance_goals").update({ current_amount: (goal.current_amount || 0) + split.amount }).eq("id", goal.id);
+        await supabase.from("finance_goals").update({ current: (goal.current || 0) + split.amount }).eq("id", goal.id);
       }
     }
     return `Split across ${splits.length} goals ✓`;
