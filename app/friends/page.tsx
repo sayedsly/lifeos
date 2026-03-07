@@ -306,7 +306,8 @@ export default function FriendsPage() {
 
   const sendRequest = async (addresseeId: string) => {
     const { error } = await supabase.from("friendships").insert({ id: Math.random().toString(36).slice(2), requester_id: myId, addressee_id: addresseeId, status: "pending" });
-    if (!error) { setRequestSent(prev => [...prev, addresseeId]); setSearchResults(prev => prev.filter(p => p.id !== addresseeId)); }
+    if (error) { alert("Error: " + error.message); return; }
+    setRequestSent(prev => [...prev, addresseeId]); setSearchResults(prev => prev.filter(p => p.id !== addresseeId));
   };
 
   const acceptRequest = async (friendshipId: string) => { await supabase.from("friendships").update({ status: "accepted" }).eq("id", friendshipId); loadAll(myId); };

@@ -163,24 +163,27 @@ FOLLOWUP:true or FOLLOWUP:false`;
     let needsFollowUp = false;
     let text = raw;
 
-    const actionsIdx = raw.indexOf("ACTIONS:");
-    const actionsMatch = actionsIdx >= 0 ? [null, raw.slice(actionsIdx + 8).trim().split("\nFOLLOWUP:")[0].trim()] : null;
     const followupMatch = raw.match(/FOLLOWUP:\s*(true|false)/i);
+    if (followupMatch) needsFollowUp = followupMatch[1].toLowerCase() === "true";
 
-    if (actionsMatch) {
+    // Strip ACTIONS block
+    const actionsIdx = raw.indexOf("ACTIONS:");
+    if (actionsIdx >= 0) {
+      const actionsStr = raw.slice(actionsIdx + 8).trim().split(/\nFOLLOWUP:/)[0].trim();
       try {
-        const parsed = JSON.parse(actionsMatch[1]);
+        const parsed = JSON.parse(actionsStr);
         actions = Array.isArray(parsed) ? parsed.filter((a: any) => a.type !== "none") : [];
       } catch (e) { console.error("Actions parse error:", e); }
-      text = raw.slice(0, raw.indexOf("ACTIONS:")).trim();
+      // Text is everything before ACTIONS, strip FOLLOWUP line too
+      text = raw.slice(0, actionsIdx).trim();
     }
 
-    if (followupMatch) {
-      needsFollowUp = followupMatch[1].toLowerCase() === "true";
-      if (!actionsMatch) text = raw.slice(0, raw.indexOf("FOLLOWUP:")).trim();
-    }
+    // Strip FOLLOWUP line from text regardless
+    text = text.replace(/FOLLOWUP:\s*(true|false)/gi, "").trim();
+    // Strip MEMORY line from text
+    text = text.replace(/MEMORY:\s*\[[\s\S]*?\]/, "").trim();
 
-    if (!text) text = raw;
+    if (!text) text = raw.replace(/ACTIONS:[\s\S]*/, "").replace(/FOLLOWUP:\s*(true|false)/gi, "").replace(/MEMORY:\s*\[[\s\S]*?\]/, "").trim();
 
     // Parse MEMORY facts
     let newFacts: string[] = [];
